@@ -34,7 +34,7 @@ func (hr *HitRecord) FrontFace() bool {
 }
 
 type Hittable interface {
-	Hit(r *ray.Ray, rayT interval.Interval, record *HitRecord) bool
+	Hit(r *ray.Ray, rayT *interval.Interval, record *HitRecord) bool
 }
 
 type HittableList struct {
@@ -52,15 +52,18 @@ func (hl *HittableList) Add(obj Hittable) {
 	hl.objects = append(hl.objects, obj)
 }
 
-func (hl *HittableList) Hit(r *ray.Ray, rayT interval.Interval, record *HitRecord) bool {
+func (hl *HittableList) Hit(r *ray.Ray, rayT *interval.Interval, record *HitRecord) bool {
 	hitRecord := HitRecord{}
 	tmp := &HitRecord{}
 	hitAny := false
 	closest_so_far := rayT.Max
+	interval := interval.New(rayT.Min, closest_so_far)
+
 	for _, obj := range hl.objects {
-		if obj.Hit(r, *interval.New(rayT.Min, closest_so_far), &hitRecord) {
+		if obj.Hit(r, interval, &hitRecord) {
 			hitAny = true
 			closest_so_far = hitRecord.t
+			interval.Max = closest_so_far
 			tmp = &hitRecord
 		}
 	}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"log"
 	"math/rand"
 	"os"
@@ -73,16 +74,14 @@ func coverWorld() *hittable.HittableList {
 	world.Add(&hittable.Sphere{Center: *vec.New(4, 1, 0), Radius: 1.0, Material: mat3})
 	return world
 }
+
 func main() {
-	file, err := os.Create("image.ppm")
-	if err != nil {
-		log.Fatal("Error creating output file\n")
-	}
+	outBuf := bytes.Buffer{}
 
 	world := coverWorld()
 
 	c := camera.Camera{}
-	c.Out = file
+	c.Out = &outBuf
 
 	c.AspectRatio = float64(16) / float64(9)
 	c.Width = 1200
@@ -96,4 +95,9 @@ func main() {
 	c.FocusDistance = 10.0
 
 	c.Render(world)
+	file, err := os.Create("image.ppm")
+	if err != nil {
+		log.Fatal("Error creating output file\n")
+	}
+	file.Write(outBuf.Bytes())
 }

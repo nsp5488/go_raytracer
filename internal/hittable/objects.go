@@ -19,7 +19,7 @@ func (s *Sphere) Init(center vec.Vec3, radius float64, material Material) {
 	s.Radius = radius
 	s.Material = material
 }
-func (s *Sphere) Hit(r *ray.Ray, rayT interval.Interval, record *HitRecord) bool {
+func (s *Sphere) Hit(r *ray.Ray, rayT *interval.Interval, record *HitRecord) bool {
 	oc := s.Center.Add(r.Origin().Negate())
 
 	// a = direction * direction = len(direction)^2

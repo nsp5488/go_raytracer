@@ -191,7 +191,7 @@ func (c *Camera) rayColor(r *ray.Ray, world *hittable.HittableList, depth int) *
 	}
 	rec := hittable.HitRecord{}
 
-	if world.Hit(r, *interval.New(0.001, math.Inf(1)), &rec) {
+	if world.Hit(r, interval.New(0.001, math.Inf(1)), &rec) {
 		scattered := &ray.Ray{}
 		attenuation := &vec.Vec3{}
 		if rec.Material.Scatter(r, scattered, &rec, attenuation) {
