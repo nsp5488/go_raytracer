@@ -16,7 +16,7 @@ type Lambertian struct {
 	Albedo vec.Vec3
 }
 
-func (l *Lambertian) Scatter(rayIn, rayOut *ray.Ray, record *HitRecord, attenuation *vec.Vec3) bool {
+func (l Lambertian) Scatter(rayIn, rayOut *ray.Ray, record *HitRecord, attenuation *vec.Vec3) bool {
 	direction := record.Normal().Add(vec.RandomUnitVector())
 	if direction.NearZero() {
 		direction = record.Normal()
@@ -31,7 +31,7 @@ type Metal struct {
 	Fuzz   float64
 }
 
-func (m *Metal) Scatter(rayIn, rayOut *ray.Ray, record *HitRecord, attenuation *vec.Vec3) bool {
+func (m Metal) Scatter(rayIn, rayOut *ray.Ray, record *HitRecord, attenuation *vec.Vec3) bool {
 	reflected := rayIn.Direction().Reflect(record.normal)
 	reflected = reflected.UnitVector().Add(vec.RandomUnitVector().Scale(m.Fuzz))
 	*rayOut = *ray.New(record.P(), reflected)
@@ -43,7 +43,7 @@ type Dielectric struct {
 	RefractionIndex float64
 }
 
-func (d *Dielectric) Scatter(rayIn, rayOut *ray.Ray, record *HitRecord, attenuation *vec.Vec3) bool {
+func (d Dielectric) Scatter(rayIn, rayOut *ray.Ray, record *HitRecord, attenuation *vec.Vec3) bool {
 	*attenuation = *vec.New(1, 1, 1)
 
 	var ri float64
@@ -68,7 +68,7 @@ func (d *Dielectric) Scatter(rayIn, rayOut *ray.Ray, record *HitRecord, attenuat
 	*rayOut = *ray.New(record.P(), direction)
 	return true
 }
-func (d *Dielectric) reflectance(cosine float64) float64 {
+func (d Dielectric) reflectance(cosine float64) float64 {
 	r0 := (1.0 - d.RefractionIndex) / (1.0 + d.RefractionIndex)
 	r0 *= r0
 	return r0 + (1-r0)*math.Pow(1-cosine, 5)

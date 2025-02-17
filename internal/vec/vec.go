@@ -79,8 +79,8 @@ func (v *Vec3) Dot(other *Vec3) float64 {
 func (v *Vec3) Cross(other *Vec3) *Vec3 {
 	return New(
 		v.e[1]*other.e[2]-v.e[2]*other.e[1],
-		v.e[0]*other.e[2]-v.e[2]*other.e[0],
-		v.e[1]*other.e[0]-v.e[0]*other.e[1],
+		v.e[2]*other.e[0]-v.e[0]*other.e[2],
+		v.e[0]*other.e[1]-v.e[1]*other.e[0],
 	)
 }
 
@@ -100,6 +100,15 @@ func (v *Vec3) Refract(normal *Vec3, etaIOverEtaT float64) *Vec3 {
 	rPerp := v.Add(normal.Scale(cosineTheta)).Scale(etaIOverEtaT)
 	rParallel := normal.Scale(-math.Sqrt(math.Abs(1.0 - rPerp.LengthSquared())))
 	return rPerp.Add(rParallel)
+}
+
+func RandomUnitDisk() *Vec3 {
+	for {
+		p := New(util.RangeRange(-1, 1), util.RangeRange(-1, 1), 0)
+		if p.LengthSquared() < 1 {
+			return p
+		}
+	}
 }
 
 func RandomUnitVector() *Vec3 {

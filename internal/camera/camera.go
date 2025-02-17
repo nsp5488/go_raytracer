@@ -3,6 +3,7 @@ package camera
 import (
 	"fmt"
 	"io"
+	"log"
 	"math"
 	"math/rand"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/nsp5488/go_raytracer/internal/interval"
 	"github.com/nsp5488/go_raytracer/internal/progress"
 	"github.com/nsp5488/go_raytracer/internal/ray"
+	"github.com/nsp5488/go_raytracer/internal/util"
 	"github.com/nsp5488/go_raytracer/internal/vec"
 
 	"github.com/nsp5488/go_raytracer/internal/hittable"
@@ -21,6 +23,9 @@ type Camera struct {
 	Out             io.Writer
 	SamplesPerPixel int
 	MaxDepth        int
+	VerticalFOV     float64
+	DefocusAngle    float64
+	FocusDistance   float64
 
 	imageHeight       int
 	center            *vec.Vec3
@@ -28,10 +33,37 @@ type Camera struct {
 	pixelDeltaU       *vec.Vec3
 	pixelDeltaV       *vec.Vec3
 	pixelSamplesScale float64
+	defocusDiskU      *vec.Vec3
+	defocusDiskV      *vec.Vec3
+
+	u *vec.Vec3
+	v *vec.Vec3
+	w *vec.Vec3
+
+	lookFrom *vec.Vec3
+	lookAt   *vec.Vec3
+	vup      *vec.Vec3
 
 	progressBar *tea.Program
 }
 
+func (c *Camera) PositionCamera(lookFrom, lookAt, vup *vec.Vec3) {
+	if lookFrom != nil {
+		c.lookFrom = lookFrom
+	} else {
+		c.lookFrom = vec.Empty()
+	}
+	if lookAt != nil {
+		c.lookAt = lookAt
+	} else {
+		c.lookAt = vec.New(0, 0, -1)
+	}
+	if vup != nil {
+		c.vup = vup
+	} else {
+		c.vup = vec.New(0, 1, 0)
+	}
+}
 func (c *Camera) Render(world *hittable.HittableList) {
 	c.initialize()
 
@@ -62,42 +94,96 @@ func (c *Camera) Render(world *hittable.HittableList) {
 
 }
 func (c *Camera) initialize() {
+	// Ensure defaults:
+	if c.AspectRatio == 0 {
+		c.AspectRatio = 1.0
+	}
+	if c.Width == 0 {
+		c.Width = 100
+	}
+	if c.Out == nil {
+		log.Fatal("Must specify an output")
+	}
+	if c.SamplesPerPixel == 0 {
+		c.SamplesPerPixel = 100
+	}
+	if c.MaxDepth == 0 {
+		c.MaxDepth = 10
+	}
+	if c.VerticalFOV == 0 {
+		c.VerticalFOV = 90
+	}
+	if c.FocusDistance == 0 {
+		c.FocusDistance = 10
+	}
+	if c.DefocusAngle == 0 {
+		c.DefocusAngle = 0
+	}
 
 	// calculate image height given aspect ratio, clamped to >=1
 	c.imageHeight = max(1, int(float64(c.Width)/c.AspectRatio))
 	c.pixelSamplesScale = 1.0 / float64(c.SamplesPerPixel)
+
 	// define camera information
-	focalLength := 1.0
-	viewportHeight := 2.0
+	c.center = c.lookFrom
+
+	theta := util.DegressToRadians(c.VerticalFOV)
+	h := math.Tan(theta / 2)
+	viewportHeight := 2.0 * h * c.FocusDistance
 	viewportWidth := viewportHeight * (float64(c.Width) / float64(c.imageHeight))
-	c.center = vec.Empty()
+
+	// calculate camera basis vectors
+	c.w = c.lookFrom.Add(c.lookAt.Negate()).UnitVector()
+	c.u = c.vup.Cross(c.w).UnitVector()
+	c.v = c.w.Cross(c.u)
 
 	// Calculate the vectors across the horizontal and down the vertical viewport edges.
-	viewportU := vec.New(viewportWidth, 0, 0)
-	viewportV := vec.New(0, -viewportHeight, 0)
+	viewportU := c.u.Scale(viewportWidth)
+	viewportV := c.v.Negate().Scale(viewportHeight)
 
 	// Calculate the horizontal and vertical delta vectors from pixel to pixel.
 	c.pixelDeltaU = viewportU.Scale(1.0 / float64(c.Width))
 	c.pixelDeltaV = viewportV.Scale(1.0 / float64(c.imageHeight))
 
 	// Calculate the location of the upper left pixel.
-	viewportTopLeft := c.center.Add(vec.New(0, 0, focalLength).Negate()).Add(viewportU.Scale(0.5).Negate()).Add(viewportV.Scale(0.5).Negate())
+	viewportTopLeft := c.center.Add(
+		c.w.Scale(c.FocusDistance).Negate()).
+		Add(viewportU.Scale(0.5).Negate()).
+		Add(viewportV.Scale(0.5).Negate())
 	c.pixel00Loc = viewportTopLeft.Add(c.pixelDeltaU.Add(c.pixelDeltaV).Scale(0.5))
 
+	// calculate defocus disk basis vectors
+	defocusRadius := c.FocusDistance * math.Tan(util.DegressToRadians(c.DefocusAngle/2.0))
+	c.defocusDiskU = c.u.Scale(defocusRadius)
+	c.defocusDiskV = c.v.Scale(defocusRadius)
+
+	// initialize the progress bar
 	c.progressBar = progress.InitBar(c.imageHeight)
 }
 
 func (c *Camera) getRay(i, j int) *ray.Ray {
-	offset := sampleSquare()
+	offset := c.sampleSquare()
 	pixelSample := c.pixel00Loc.
 		Add(c.pixelDeltaU.Scale(float64(i) + offset.X())).
 		Add(c.pixelDeltaV.Scale(float64(j) + offset.Y()))
-	ray_direction := pixelSample.Add(c.center.Negate())
-	return ray.New(c.center, ray_direction)
+	var rayOrigin *vec.Vec3
+	if c.DefocusAngle <= 0 {
+		rayOrigin = c.center
+	} else {
+		rayOrigin = c.defocusDiskSample()
+	}
+	rayDirection := pixelSample.Add(rayOrigin.Negate())
+	return ray.New(rayOrigin, rayDirection)
 }
 
-func sampleSquare() *vec.Vec3 {
+func (c *Camera) sampleSquare() *vec.Vec3 {
 	return vec.New(rand.Float64()-0.5, rand.Float64()-0.5, 0)
+}
+func (c *Camera) defocusDiskSample() *vec.Vec3 {
+	p := vec.RandomUnitDisk()
+	return c.center.
+		Add(c.defocusDiskU.Scale(p.X())).
+		Add(c.defocusDiskV.Scale(p.Y()))
 }
 func (c *Camera) rayColor(r *ray.Ray, world *hittable.HittableList, depth int) *vec.Vec3 {
 	if depth < 0 {
