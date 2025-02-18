@@ -1,11 +1,14 @@
 package camera
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"log"
 	"math"
 	"math/rand"
+	"sort"
+	"sync"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/nsp5488/go_raytracer/internal/interval"
@@ -23,10 +26,13 @@ type Camera struct {
 	Out             io.Writer
 	SamplesPerPixel int
 	MaxDepth        int
+	MaxThreads      int
 	VerticalFOV     float64
 	DefocusAngle    float64
 	FocusDistance   float64
 
+	groupSize         chan struct{}
+	waitGroup         *sync.WaitGroup
 	imageHeight       int
 	center            *vec.Vec3
 	pixel00Loc        *vec.Vec3
@@ -45,6 +51,7 @@ type Camera struct {
 	vup      *vec.Vec3
 
 	progressBar *tea.Program
+	pbarMutex   sync.Mutex
 }
 
 func (c *Camera) PositionCamera(lookFrom, lookAt, vup *vec.Vec3) {
@@ -64,31 +71,89 @@ func (c *Camera) PositionCamera(lookFrom, lookAt, vup *vec.Vec3) {
 		c.vup = vec.New(0, 1, 0)
 	}
 }
+
+func (c *Camera) renderRow(world *hittable.HittableList, buf *rowData) {
+	defer c.waitGroup.Done()
+	c.groupSize <- struct{}{}
+	for j := range c.Width {
+		pixelColor := vec.Empty()
+		for range c.SamplesPerPixel {
+			r := c.getRay(j, buf.index)
+			pixelColor.AddInplace(c.rayColor(r, world, c.MaxDepth))
+
+		}
+
+		pixelColor.Scale(c.pixelSamplesScale).PrintColor(buf.data)
+	}
+	<-c.groupSize
+	c.pbarMutex.Lock()
+	c.progressBar.Send(1)
+	c.pbarMutex.Unlock()
+}
+func (c *Camera) threadedRendreer() {
+
+}
+
+type rowData struct {
+	index int
+	data  *bytes.Buffer
+}
+
+func (c *Camera) threadedRenderer(world *hittable.HittableList) {
+	c.progressBar.Send("Start") // start the stopwatch
+	buffers := make([]rowData, c.imageHeight, c.imageHeight)
+	for i := range c.imageHeight {
+		buffers[i].data = &bytes.Buffer{}
+		buffers[i].index = i
+	}
+
+	for i := range c.imageHeight {
+		c.waitGroup.Add(1)
+		go c.renderRow(world, &buffers[i])
+	}
+	c.waitGroup.Wait()
+
+	sort.Slice(buffers, func(i, j int) bool {
+		return buffers[i].index < buffers[j].index
+	})
+	for _, buf := range buffers {
+		buf.data.WriteTo(c.Out)
+	}
+	c.progressBar.Send(1)
+}
+
+func (c *Camera) syncRenderer(world *hittable.HittableList) {
+	for i := range c.imageHeight {
+		for j := range c.Width {
+			pixelColor := vec.Empty()
+			for range c.SamplesPerPixel {
+				r := c.getRay(j, i)
+				pixelColor.AddInplace(c.rayColor(r, world, c.MaxDepth))
+
+			}
+
+			pixelColor.Scale(c.pixelSamplesScale).PrintColor(c.Out)
+		}
+		c.progressBar.Send(1)
+	}
+	c.progressBar.Send(1)
+}
 func (c *Camera) Render(world *hittable.HittableList) {
 	c.initialize()
 
 	io.WriteString(c.Out, fmt.Sprintf("P3\n%d %d\n255\n", c.Width, c.imageHeight))
+
 	// Run the processing in a separate goroutine
-
-	go func() {
-		for i := range c.imageHeight {
-			for j := range c.Width {
-
-				pixelColor := vec.Empty()
-				for range c.SamplesPerPixel {
-					r := c.getRay(j, i)
-					pixelColor.AddInplace(c.rayColor(r, world, c.MaxDepth))
-
-				}
-
-				pixelColor.Scale(c.pixelSamplesScale).PrintColor(c.Out)
-			}
-			c.progressBar.Send(i + 1)
-		}
-	}()
+	if c.MaxThreads <= 1 {
+		// use a low-overhead synchronous renderer if we're only alloted one thread.
+		go c.syncRenderer(world)
+	} else {
+		go c.threadedRenderer(world)
+	}
 
 	if _, err := c.progressBar.Run(); err != nil {
 		fmt.Printf("Error running program: %v", err)
+		c.progressBar.ReleaseTerminal()
 		return
 	}
 
@@ -157,8 +222,11 @@ func (c *Camera) initialize() {
 	c.defocusDiskU = c.u.Scale(defocusRadius)
 	c.defocusDiskV = c.v.Scale(defocusRadius)
 
+	c.waitGroup = &sync.WaitGroup{}
+	c.groupSize = make(chan struct{}, c.MaxThreads)
+
 	// initialize the progress bar
-	c.progressBar = progress.InitBar(c.imageHeight)
+	c.progressBar = progress.InitBar(c.imageHeight + 1)
 }
 
 func (c *Camera) getRay(i, j int) *ray.Ray {

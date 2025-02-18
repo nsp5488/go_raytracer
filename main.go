@@ -77,9 +77,15 @@ func coverWorld() *hittable.HittableList {
 	return world
 }
 
-var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
-
 func main() {
+	cpuprofile := flag.String("cpuprofile", "", "Write cpu profile to file")
+	outFile := flag.String("o", "imagees/image.ppm", "Specify a custom output file")
+	coreCount := flag.Int("N", 1, "Set the number of cores to allocate to rendering")
+	imgWidth := flag.Int("width", 1200, "Set the image width, default:1200")
+	samplesPerPix := flag.Int("samples", 5, "Specify the number of samples to take per pixel")
+	maxDepth := flag.Int("depth", 50, "Sets the maximum recursive depth of ray bounces")
+	vfov := flag.Float64("fov", 20, "Sets the vertical FOV of the camera")
+
 	flag.Parse()
 	if *cpuprofile != "" {
 		f, err := os.Create(*cpuprofile)
@@ -89,28 +95,33 @@ func main() {
 		pprof.StartCPUProfile(f)
 		defer pprof.StopCPUProfile()
 	}
+
+	file, err := os.Create(*outFile)
+	defer file.Close()
+	if err != nil {
+		log.Fatal("Error creating output file\n")
+	}
+
 	outBuf := bytes.Buffer{}
 
 	world := coverWorld()
 
 	c := camera.Camera{}
 	c.Out = &outBuf
+	c.MaxThreads = *coreCount
 
 	c.AspectRatio = float64(16) / float64(9)
-	c.Width = 120
-	c.SamplesPerPixel = 5
-	c.MaxDepth = 50
+	c.Width = *imgWidth
+	c.SamplesPerPixel = *samplesPerPix
+	c.MaxDepth = *maxDepth
 
-	c.VerticalFOV = 20
+	c.VerticalFOV = *vfov
 	c.PositionCamera(vec.New(13, 2, 3), vec.New(0, 0, 0), vec.New(0, 1, 0))
 
 	c.DefocusAngle = 0.6
 	c.FocusDistance = 10.0
 
 	c.Render(world)
-	file, err := os.Create("images/image.ppm")
-	if err != nil {
-		log.Fatal("Error creating output file\n")
-	}
+
 	file.Write(outBuf.Bytes())
 }
