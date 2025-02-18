@@ -9,7 +9,7 @@ all: build
 build:
 	@echo "Building $(APP_NAME)..."
 	@mkdir -p $(BUILD_DIR)
-	GOOS=linux GOARCH=amd64 go build -o $(BUILD_DIR)/$(APP_NAME) $(SRC_DIR)
+	go build -o $(BUILD_DIR)/$(APP_NAME) $(SRC_DIR)
 
 clean:
 	@echo "Cleaning up..."
@@ -18,3 +18,6 @@ clean:
 run: build
 	@echo "Running $(APP_NAME)..."
 	@$(BUILD_DIR)/$(APP_NAME)
+
+profile: build
+	@$(BUILD_DIR)/$(APP_NAME) -cpuprofile=ray_trace.prof

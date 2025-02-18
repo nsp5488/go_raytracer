@@ -2,9 +2,11 @@ package main
 
 import (
 	"bytes"
+	"flag"
 	"log"
 	"math/rand"
 	"os"
+	"runtime/pprof"
 
 	"github.com/nsp5488/go_raytracer/internal/camera"
 	"github.com/nsp5488/go_raytracer/internal/hittable"
@@ -75,7 +77,18 @@ func coverWorld() *hittable.HittableList {
 	return world
 }
 
+var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
+
 func main() {
+	flag.Parse()
+	if *cpuprofile != "" {
+		f, err := os.Create(*cpuprofile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
+	}
 	outBuf := bytes.Buffer{}
 
 	world := coverWorld()
@@ -84,8 +97,8 @@ func main() {
 	c.Out = &outBuf
 
 	c.AspectRatio = float64(16) / float64(9)
-	c.Width = 1200
-	c.SamplesPerPixel = 500
+	c.Width = 120
+	c.SamplesPerPixel = 5
 	c.MaxDepth = 50
 
 	c.VerticalFOV = 20
