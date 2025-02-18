@@ -20,7 +20,9 @@ import (
 	"github.com/nsp5488/go_raytracer/internal/hittable"
 )
 
+// Defines a camera which represents the viewpoint from which the scene is rendered.
 type Camera struct {
+	// public members
 	AspectRatio     float64
 	Width           int
 	Out             io.Writer
@@ -31,6 +33,7 @@ type Camera struct {
 	DefocusAngle    float64
 	FocusDistance   float64
 
+	// private members
 	groupSize         chan struct{}
 	waitGroup         *sync.WaitGroup
 	imageHeight       int
@@ -42,18 +45,19 @@ type Camera struct {
 	defocusDiskU      *vec.Vec3
 	defocusDiskV      *vec.Vec3
 
-	u *vec.Vec3
-	v *vec.Vec3
-	w *vec.Vec3
-
+	u        *vec.Vec3
+	v        *vec.Vec3
+	w        *vec.Vec3
 	lookFrom *vec.Vec3
 	lookAt   *vec.Vec3
 	vup      *vec.Vec3
 
+	// progress bar state
 	progressBar *tea.Program
 	pbarMutex   sync.Mutex
 }
 
+// PositionCamera positions the camera with the given parameters.
 func (c *Camera) PositionCamera(lookFrom, lookAt, vup *vec.Vec3) {
 	if lookFrom != nil {
 		c.lookFrom = lookFrom
@@ -72,6 +76,13 @@ func (c *Camera) PositionCamera(lookFrom, lookAt, vup *vec.Vec3) {
 	}
 }
 
+// A struct for representing a row of pixel data.
+type rowData struct {
+	index int
+	data  *bytes.Buffer
+}
+
+// calculates the pixel data for one row of the image utilizing a thread pool.
 func (c *Camera) renderRow(world *hittable.HittableList, buf *rowData) {
 	defer c.waitGroup.Done()
 	c.groupSize <- struct{}{}
@@ -90,15 +101,8 @@ func (c *Camera) renderRow(world *hittable.HittableList, buf *rowData) {
 	c.progressBar.Send(1)
 	c.pbarMutex.Unlock()
 }
-func (c *Camera) threadedRendreer() {
 
-}
-
-type rowData struct {
-	index int
-	data  *bytes.Buffer
-}
-
+// A threaded variant of the renderer.
 func (c *Camera) threadedRenderer(world *hittable.HittableList) {
 	c.progressBar.Send("Start") // start the stopwatch
 	buffers := make([]rowData, c.imageHeight, c.imageHeight)
@@ -122,6 +126,7 @@ func (c *Camera) threadedRenderer(world *hittable.HittableList) {
 	c.progressBar.Send(1)
 }
 
+// A synchronous variant of the renderer.
 func (c *Camera) syncRenderer(world *hittable.HittableList) {
 	for i := range c.imageHeight {
 		for j := range c.Width {
@@ -138,6 +143,8 @@ func (c *Camera) syncRenderer(world *hittable.HittableList) {
 	}
 	c.progressBar.Send(1)
 }
+
+// Render the provided scene using the camera's settings.
 func (c *Camera) Render(world *hittable.HittableList) {
 	c.initialize()
 
@@ -158,6 +165,8 @@ func (c *Camera) Render(world *hittable.HittableList) {
 	}
 
 }
+
+// initialize the camera's settings.
 func (c *Camera) initialize() {
 	// Ensure defaults:
 	if c.AspectRatio == 0 {
@@ -229,6 +238,7 @@ func (c *Camera) initialize() {
 	c.progressBar = progress.InitBar(c.imageHeight + 1)
 }
 
+// getRay returns a ray from the camera with some amount of defocus and sampling to offset. This creates a smoother image and simulates depth of field.
 func (c *Camera) getRay(i, j int) *ray.Ray {
 	offset := c.sampleSquare()
 	pixelSample := c.pixel00Loc.
@@ -244,15 +254,20 @@ func (c *Camera) getRay(i, j int) *ray.Ray {
 	return ray.New(rayOrigin, rayDirection)
 }
 
+// Returns a random offset within a 1x1 square
 func (c *Camera) sampleSquare() *vec.Vec3 {
 	return vec.New(rand.Float64()-0.5, rand.Float64()-0.5, 0)
 }
+
+// Returns a randomly offset center point for the ray to simulate depth of field
 func (c *Camera) defocusDiskSample() *vec.Vec3 {
 	p := vec.RandomUnitDisk()
 	return c.center.
 		Add(c.defocusDiskU.Scale(p.X())).
 		Add(c.defocusDiskV.Scale(p.Y()))
 }
+
+// Calculates the color of a ray after it has been traced through the scene.
 func (c *Camera) rayColor(r *ray.Ray, world *hittable.HittableList, depth int) *vec.Vec3 {
 	if depth < 0 {
 		return vec.Empty()

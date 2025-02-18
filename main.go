@@ -13,6 +13,7 @@ import (
 	"github.com/nsp5488/go_raytracer/internal/vec"
 )
 
+// Creates a simple test world.
 func testWorld() *hittable.HittableList {
 	// define our materials
 	// matte
@@ -40,6 +41,7 @@ func testWorld() *hittable.HittableList {
 	return world
 }
 
+// Creates the world from the cover of Ray Tracing in One Weekend.
 func coverWorld() *hittable.HittableList {
 	world := &hittable.HittableList{}
 	world.Init(50)

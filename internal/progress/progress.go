@@ -15,6 +15,7 @@ const (
 	maxWidth = 80
 )
 
+// Model to represent the state of the progress bar and stopwatch.
 type model struct {
 	totalItems  int
 	currentItem int
@@ -26,6 +27,7 @@ func (m model) Init() tea.Cmd {
 	return m.stopwatch.Init()
 }
 
+// Updates the progress bar and stopwatch.
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
@@ -62,6 +64,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.stopwatch, cmd = m.stopwatch.Update(msg)
 	return m, cmd
 }
+
+// Returns a string representation of the progress bar and stopwatch.
 func (m model) View() string {
 	if m.currentItem >= m.totalItems {
 		return "Done!\n"
@@ -72,12 +76,15 @@ func (m model) View() string {
 	out := fmt.Sprintf("\n %s Time Elapsed: %s\n", m.progressbar.ViewAs(percent), m.stopwatch.View())
 	return out
 }
+
 func (m model) StartStopwatch() {
 	if !m.stopwatch.Running() {
 		m.stopwatch.Start()
 	}
 
 }
+
+// Initialize a new progress bar model.
 func InitBar(num_items int) *tea.Program {
 	progressbar := progress.New(progress.WithDefaultGradient())
 

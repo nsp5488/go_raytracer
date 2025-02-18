@@ -10,6 +10,7 @@ import (
 
 var intensity = interval.New(0, 0.99999)
 
+// Converts a linear color component to gamma2 space
 func linearToGamma(linearComponent float64) float64 {
 	if linearComponent <= 0 {
 		return 0
@@ -18,6 +19,7 @@ func linearToGamma(linearComponent float64) float64 {
 }
 
 // There is no API prevention on calling this for any given vec3. I may refactor this into a Color struct at some point
+// Prints the color components of the vector to the given writer
 func (v *Vec3) PrintColor(out io.Writer) {
 
 	r := linearToGamma(v.e[0])

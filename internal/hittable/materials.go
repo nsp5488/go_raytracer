@@ -8,14 +8,17 @@ import (
 	"github.com/nsp5488/go_raytracer/internal/vec"
 )
 
+// Material interface defines the behavior of a material when a ray hits it.
 type Material interface {
 	Scatter(rayIn, rayOut *ray.Ray, record *HitRecord, attenuation *vec.Vec3) bool
 }
 
+// Lambertian (matte) material.
 type Lambertian struct {
 	Albedo vec.Vec3
 }
 
+// Scatter implements the Lambertian material's scattering behavior.
 func (l Lambertian) Scatter(rayIn, rayOut *ray.Ray, record *HitRecord, attenuation *vec.Vec3) bool {
 	direction := record.Normal().Add(vec.RandomUnitVector())
 	if direction.NearZero() {
@@ -26,11 +29,13 @@ func (l Lambertian) Scatter(rayIn, rayOut *ray.Ray, record *HitRecord, attenuati
 	return true
 }
 
+// Metal material.
 type Metal struct {
 	Albedo vec.Vec3
 	Fuzz   float64
 }
 
+// Scatter implements the metal material's scattering behavior.
 func (m Metal) Scatter(rayIn, rayOut *ray.Ray, record *HitRecord, attenuation *vec.Vec3) bool {
 	reflected := rayIn.Direction().Reflect(record.normal)
 	reflected = reflected.UnitVector().Add(vec.RandomUnitVector().Scale(m.Fuzz))
@@ -39,10 +44,12 @@ func (m Metal) Scatter(rayIn, rayOut *ray.Ray, record *HitRecord, attenuation *v
 	return rayOut.Direction().Dot(record.Normal()) > 0
 }
 
+// Dielectric material.
 type Dielectric struct {
 	RefractionIndex float64
 }
 
+// Scatter implements the dielectric material's scattering behavior.
 func (d Dielectric) Scatter(rayIn, rayOut *ray.Ray, record *HitRecord, attenuation *vec.Vec3) bool {
 	*attenuation = *vec.New(1, 1, 1)
 
@@ -68,6 +75,8 @@ func (d Dielectric) Scatter(rayIn, rayOut *ray.Ray, record *HitRecord, attenuati
 	*rayOut = *ray.New(record.P(), direction)
 	return true
 }
+
+// Helper function to calculate the reflectance of a dielectric material
 func (d Dielectric) reflectance(cosine float64) float64 {
 	r0 := (1.0 - d.RefractionIndex) / (1.0 + d.RefractionIndex)
 	r0 *= r0

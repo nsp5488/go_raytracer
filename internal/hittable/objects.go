@@ -8,17 +8,21 @@ import (
 	"github.com/nsp5488/go_raytracer/internal/vec"
 )
 
+// Represents a sphere in 3D space
 type Sphere struct {
 	Center   vec.Vec3
 	Radius   float64
 	Material Material
 }
 
+// Initialize a sphere with a center, radius, and material
 func (s *Sphere) Init(center vec.Vec3, radius float64, material Material) {
 	s.Center = center
 	s.Radius = radius
 	s.Material = material
 }
+
+// Hit checks if a ray intersects with the sphere.
 func (s *Sphere) Hit(r *ray.Ray, rayT *interval.Interval, record *HitRecord) bool {
 	oc := s.Center.Add(r.Origin().Negate())
 

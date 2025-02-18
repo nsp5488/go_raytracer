@@ -6,6 +6,7 @@ import (
 	"github.com/nsp5488/go_raytracer/internal/vec"
 )
 
+// Records information about a ray hitting a surface (hittable)
 type HitRecord struct {
 	p         *vec.Vec3
 	normal    *vec.Vec3
@@ -14,6 +15,7 @@ type HitRecord struct {
 	Material  Material
 }
 
+// Sets the face normal based on the ray direction and the normal vector
 func (hr *HitRecord) setFaceNormal(r *ray.Ray, normal *vec.Vec3) {
 	hr.frontFace = r.Direction().Dot(normal) < 0
 	if hr.frontFace {
@@ -22,21 +24,28 @@ func (hr *HitRecord) setFaceNormal(r *ray.Ray, normal *vec.Vec3) {
 		hr.normal = normal.Negate()
 	}
 }
+
+// Returns the normal vector of the hit surface
 func (hr *HitRecord) Normal() *vec.Vec3 {
 	return hr.normal
 }
 
+// Returns the point of intersection of the ray with the surface
 func (hr *HitRecord) P() *vec.Vec3 {
 	return hr.p
 }
+
+// Returns whether the ray hit the surface from the front or back
 func (hr *HitRecord) FrontFace() bool {
 	return hr.frontFace
 }
 
+// Defines the behavior of a hittable object
 type Hittable interface {
 	Hit(r *ray.Ray, rayT *interval.Interval, record *HitRecord) bool
 }
 
+// A container struct for a list of hittable objects. Effectively a scene.
 type HittableList struct {
 	objects []Hittable
 }
@@ -52,6 +61,7 @@ func (hl *HittableList) Add(obj Hittable) {
 	hl.objects = append(hl.objects, obj)
 }
 
+// Checks if a ray hits any of the objects in a scene
 func (hl *HittableList) Hit(r *ray.Ray, rayT *interval.Interval, record *HitRecord) bool {
 	hitRecord := HitRecord{}
 	tmp := &HitRecord{}
