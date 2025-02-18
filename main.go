@@ -108,7 +108,7 @@ func main() {
 	c.FocusDistance = 10.0
 
 	c.Render(world)
-	file, err := os.Create("image.ppm")
+	file, err := os.Create("images/image.ppm")
 	if err != nil {
 		log.Fatal("Error creating output file\n")
 	}
