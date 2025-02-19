@@ -1,6 +1,7 @@
 package hittable
 
 import (
+	"github.com/nsp5488/go_raytracer/internal/aabb"
 	"github.com/nsp5488/go_raytracer/internal/interval"
 	"github.com/nsp5488/go_raytracer/internal/ray"
 	"github.com/nsp5488/go_raytracer/internal/vec"
@@ -42,16 +43,20 @@ func (hr *HitRecord) FrontFace() bool {
 
 // Defines the behavior of a hittable object
 type Hittable interface {
-	Hit(r *ray.Ray, rayT *interval.Interval, record *HitRecord) bool
+	Hit(r *ray.Ray, rayT interval.Interval, record *HitRecord) bool
+	BBox() *aabb.AABB
 }
 
 // A container struct for a list of hittable objects. Effectively a scene.
 type HittableList struct {
 	objects []Hittable
+
+	bbox *aabb.AABB
 }
 
 func (hl *HittableList) Init(startSize int) {
 	hl.objects = make([]Hittable, 0, startSize)
+	hl.bbox = aabb.EmptyBBox()
 }
 func (hl *HittableList) Clear() {
 	hl.objects = make([]Hittable, 10)
@@ -59,10 +64,14 @@ func (hl *HittableList) Clear() {
 
 func (hl *HittableList) Add(obj Hittable) {
 	hl.objects = append(hl.objects, obj)
+	hl.bbox = aabb.FromBBoxes(hl.bbox, obj.BBox())
+}
+func (hl *HittableList) BBox() *aabb.AABB {
+	return hl.bbox
 }
 
 // Checks if a ray hits any of the objects in a scene
-func (hl *HittableList) Hit(r *ray.Ray, rayT *interval.Interval, record *HitRecord) bool {
+func (hl *HittableList) Hit(r *ray.Ray, rayT interval.Interval, record *HitRecord) bool {
 	hitRecord := HitRecord{}
 	tmp := &HitRecord{}
 	hitAny := false
@@ -70,7 +79,7 @@ func (hl *HittableList) Hit(r *ray.Ray, rayT *interval.Interval, record *HitReco
 	interval := interval.New(rayT.Min, closest_so_far)
 
 	for _, obj := range hl.objects {
-		if obj.Hit(r, interval, &hitRecord) {
+		if obj.Hit(r, *interval, &hitRecord) {
 			hitAny = true
 			closest_so_far = hitRecord.t
 			interval.Max = closest_so_far

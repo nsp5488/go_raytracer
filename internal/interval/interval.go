@@ -13,6 +13,12 @@ func New(min, max float64) *Interval {
 	return &Interval{min, max}
 }
 
+func Combine(i1, i2 *Interval) *Interval {
+	min := min(i1.Min, i2.Min)
+	max := max(i1.Max, i2.Max)
+	return New(min, max)
+}
+
 // Size returns the size of the interval
 func (i *Interval) Size() float64 {
 	return i.Max - i.Min
@@ -38,13 +44,17 @@ func (i *Interval) Clamp(x float64) float64 {
 	}
 	return x
 }
+func (i *Interval) Expand(delta float64) *Interval {
+	padding := delta / 2
+	return New(i.Min-padding, i.Max+padding)
+}
 
 var EMPTY = Interval{math.Inf(1), math.Inf(-1)}
 var UNIVERSE = Interval{math.Inf(-1), math.Inf(1)}
 
-func Empty() Interval {
-	return EMPTY
+func Empty() *Interval {
+	return &EMPTY
 }
-func Universe() Interval {
-	return UNIVERSE
+func Universe() *Interval {
+	return &UNIVERSE
 }

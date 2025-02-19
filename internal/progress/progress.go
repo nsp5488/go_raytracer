@@ -68,7 +68,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // Returns a string representation of the progress bar and stopwatch.
 func (m model) View() string {
 	if m.currentItem >= m.totalItems {
-		return "Done!\n"
+		m.stopwatch.Stop()
+		return fmt.Sprintf("Done after %s\n", m.stopwatch.View())
 	}
 
 	// Calculate progress percentage

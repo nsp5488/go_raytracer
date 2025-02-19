@@ -3,6 +3,7 @@ package hittable
 import (
 	"math"
 
+	"github.com/nsp5488/go_raytracer/internal/aabb"
 	"github.com/nsp5488/go_raytracer/internal/interval"
 	"github.com/nsp5488/go_raytracer/internal/ray"
 	"github.com/nsp5488/go_raytracer/internal/vec"
@@ -10,21 +11,34 @@ import (
 
 // Represents a sphere in 3D space
 type Sphere struct {
-	Center   vec.Vec3
+	Center ray.Ray // Using a ray to represent motion
+
 	Radius   float64
 	Material Material
+	bbox     *aabb.AABB
 }
 
-// Initialize a sphere with a center, radius, and material
-func (s *Sphere) Init(center vec.Vec3, radius float64, material Material) {
-	s.Center = center
-	s.Radius = radius
-	s.Material = material
+func NewSphere(center vec.Vec3, radius float64, material Material) *Sphere {
+	rvec := vec.New(radius, radius, radius)
+	bbox := aabb.FromPoints(center.Sub(rvec), center.Add(rvec))
+	return &Sphere{Center: *ray.New(&center, vec.Empty()), Radius: radius, Material: material, bbox: bbox}
+}
+func NewMotionSphere(center1, center2 vec.Vec3, radius float64, material Material) *Sphere {
+	rvec := vec.New(radius, radius, radius)
+	center := *ray.New(&center1, center2.Sub(&center1))
+	bbox1 := aabb.FromPoints(center.At(0).Sub(rvec), center.At(0).Add(rvec))
+	bbox2 := aabb.FromPoints(center.At(1).Sub(rvec), center.At(1).Add(rvec))
+
+	return &Sphere{Center: center, Radius: radius, Material: material, bbox: aabb.FromBBoxes(bbox1, bbox2)}
+}
+func (s *Sphere) BBox() *aabb.AABB {
+	return s.bbox
 }
 
 // Hit checks if a ray intersects with the sphere.
-func (s *Sphere) Hit(r *ray.Ray, rayT *interval.Interval, record *HitRecord) bool {
-	oc := s.Center.Add(r.Origin().Negate())
+func (s *Sphere) Hit(r *ray.Ray, rayT interval.Interval, record *HitRecord) bool {
+	curCenter := s.Center.At(r.Time())
+	oc := curCenter.Sub(r.Origin())
 
 	// a = direction * direction = len(direction)^2
 	a := r.Direction().LengthSquared()
@@ -49,7 +63,7 @@ func (s *Sphere) Hit(r *ray.Ray, rayT *interval.Interval, record *HitRecord) boo
 
 	record.t = root
 	record.p = r.At(root)
-	outward_normal := record.p.Add(s.Center.Negate()).Scale(1 / s.Radius)
+	outward_normal := record.p.Sub(curCenter).Scale(1 / s.Radius)
 	record.setFaceNormal(r, outward_normal)
 	record.Material = s.Material
 	return true

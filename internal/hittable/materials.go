@@ -24,7 +24,7 @@ func (l Lambertian) Scatter(rayIn, rayOut *ray.Ray, record *HitRecord, attenuati
 	if direction.NearZero() {
 		direction = record.Normal()
 	}
-	*rayOut = *ray.New(record.P(), direction)
+	*rayOut = *ray.NewWithTime(record.P(), direction, rayIn.Time())
 	*attenuation = l.Albedo
 	return true
 }
@@ -39,7 +39,7 @@ type Metal struct {
 func (m Metal) Scatter(rayIn, rayOut *ray.Ray, record *HitRecord, attenuation *vec.Vec3) bool {
 	reflected := rayIn.Direction().Reflect(record.normal)
 	reflected = reflected.UnitVector().Add(vec.RandomUnitVector().Scale(m.Fuzz))
-	*rayOut = *ray.New(record.P(), reflected)
+	*rayOut = *ray.NewWithTime(record.P(), reflected, rayIn.Time())
 	*attenuation = m.Albedo
 	return rayOut.Direction().Dot(record.Normal()) > 0
 }
@@ -72,7 +72,7 @@ func (d Dielectric) Scatter(rayIn, rayOut *ray.Ray, record *HitRecord, attenuati
 		direction = unitDirection.Refract(record.normal, ri)
 	}
 
-	*rayOut = *ray.New(record.P(), direction)
+	*rayOut = *ray.NewWithTime(record.P(), direction, rayIn.Time())
 	return true
 }
 

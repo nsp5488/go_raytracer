@@ -207,7 +207,7 @@ func (c *Camera) initialize() {
 	viewportWidth := viewportHeight * (float64(c.Width) / float64(c.imageHeight))
 
 	// calculate camera basis vectors
-	c.w = c.lookFrom.Add(c.lookAt.Negate()).UnitVector()
+	c.w = c.lookFrom.Sub(c.lookAt).UnitVector()
 	c.u = c.vup.Cross(c.w).UnitVector()
 	c.v = c.w.Cross(c.u)
 
@@ -220,10 +220,10 @@ func (c *Camera) initialize() {
 	c.pixelDeltaV = viewportV.Scale(1.0 / float64(c.imageHeight))
 
 	// Calculate the location of the upper left pixel.
-	viewportTopLeft := c.center.Add(
-		c.w.Scale(c.FocusDistance).Negate()).
-		Add(viewportU.Scale(0.5).Negate()).
-		Add(viewportV.Scale(0.5).Negate())
+	viewportTopLeft := c.center.Sub(
+		c.w.Scale(c.FocusDistance)).
+		Sub(viewportU.Scale(0.5)).
+		Sub(viewportV.Scale(0.5))
 	c.pixel00Loc = viewportTopLeft.Add(c.pixelDeltaU.Add(c.pixelDeltaV).Scale(0.5))
 
 	// calculate defocus disk basis vectors
@@ -250,8 +250,9 @@ func (c *Camera) getRay(i, j int) *ray.Ray {
 	} else {
 		rayOrigin = c.defocusDiskSample()
 	}
-	rayDirection := pixelSample.Add(rayOrigin.Negate())
-	return ray.New(rayOrigin, rayDirection)
+	rayDirection := pixelSample.Sub(rayOrigin)
+	rayTime := rand.Float64()
+	return ray.NewWithTime(rayOrigin, rayDirection, rayTime)
 }
 
 // Returns a random offset within a 1x1 square
@@ -274,7 +275,7 @@ func (c *Camera) rayColor(r *ray.Ray, world *hittable.HittableList, depth int) *
 	}
 	rec := hittable.HitRecord{}
 
-	if world.Hit(r, interval.New(0.001, math.Inf(1)), &rec) {
+	if world.Hit(r, *interval.New(0.001, math.Inf(1)), &rec) {
 		scattered := &ray.Ray{}
 		attenuation := &vec.Vec3{}
 		if rec.Material.Scatter(r, scattered, &rec, attenuation) {

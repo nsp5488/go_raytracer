@@ -81,6 +81,9 @@ func (v *Vec3) Scale(t float64) *Vec3 {
 func (v *Vec3) Add(other *Vec3) *Vec3 {
 	return New(v.e[0]+other.e[0], v.e[1]+other.e[1], v.e[2]+other.e[2])
 }
+func (v *Vec3) Sub(other *Vec3) *Vec3 {
+	return New(v.e[0]-other.e[0], v.e[1]-other.e[1], v.e[2]-other.e[2])
+}
 
 // Multiplies the given vector with the current vector and returns the result
 func (v *Vec3) Multiply(other *Vec3) *Vec3 {
@@ -129,7 +132,7 @@ func (v *Vec3) NearZero() bool {
 
 // Reflects the vector about the given normal vector
 func (v *Vec3) Reflect(normal *Vec3) *Vec3 {
-	return v.Add(normal.Scale(normal.Dot(v) * 2).Negate())
+	return v.Sub(normal.Scale(normal.Dot(v) * 2))
 }
 
 // Refracts the vector through the given normal vector with the given etaIOverEtaT ratio
