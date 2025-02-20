@@ -104,7 +104,6 @@ func (c *Camera) renderRow(world *hittable.HittableList, buf *rowData) {
 
 // A threaded variant of the renderer.
 func (c *Camera) threadedRenderer(world *hittable.HittableList) {
-	c.progressBar.Send("Start") // start the stopwatch
 	buffers := make([]rowData, c.imageHeight, c.imageHeight)
 	for i := range c.imageHeight {
 		buffers[i].data = &bytes.Buffer{}

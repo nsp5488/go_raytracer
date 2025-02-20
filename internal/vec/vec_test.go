@@ -1,6 +1,8 @@
 package vec_test
 
 import (
+	"bytes"
+	"fmt"
 	"math"
 	"testing"
 
@@ -30,7 +32,7 @@ func TestVecSub(t *testing.T) {
 	v1 := vec.New(1, 2, 3)
 	v2 := vec.New(4, 5, 6)
 	expected := vec.New(-3, -3, -3)
-	checkVec(t, v1.Add(v2.Negate()), expected)
+	checkVec(t, v1.Sub(v2), expected)
 }
 
 func TestVecMul(t *testing.T) {
@@ -124,4 +126,29 @@ func TestVecNearZero(t *testing.T) {
 	if v.NearZero() {
 		t.Error("Expected false, got true")
 	}
+}
+
+func TestString(t *testing.T) {
+	v := vec.New(1.0, 2.0, 3.0)
+	exp := fmt.Sprintf("(%f, %f, %f)", 1.0, 2.0, 3.0)
+	act := v.String()
+	if act != exp {
+		t.Errorf("Expected %s, got %s", exp, act)
+	}
+}
+
+func TestWriteColor(t *testing.T) {
+	v := vec.New(0, 128, 255)
+	exp := fmt.Sprintf("%d %d %d\n", 0, 255, 255)
+	b := &bytes.Buffer{}
+	v.PrintColor(b)
+	delim := byte('\n')
+	act, err := b.ReadString(delim)
+	if err != nil {
+		t.Error("Invalid output format")
+	}
+	if act != exp {
+		t.Errorf("Expected %s,, got %s", exp, act)
+	}
+
 }

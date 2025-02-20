@@ -50,8 +50,9 @@ var magenta = &pixel{[3]uint8{255, 0, 255}}
 
 // Returns the pixel data for the wrapped image at (x,y)
 func (rti *RTImage) PixelData(x, y int) *pixel {
-	x, y = min(max(x, 0), rti.Width-1), min(max(y, 0), rti.Height-1)
+	x, y = min(max(x, 0), rti.Width), min(max(y, 0), rti.Height)
 	idx := y*rti.Width + x
+
 	if idx > len(rti.bdata) || rti.bdata[idx] == nil {
 		return magenta
 	}
@@ -74,10 +75,13 @@ func (rti *RTImage) rgbToByte(pData color.Color, idx int) {
 
 // Private helper method to build the internal representation of pixels in the image.
 func (rti *RTImage) convertToBytes() {
-	fmt.Println("converting image data to bytes...")
 	for x := 0; x < rti.Width; x++ {
 		for y := 0; y < rti.Height; y++ {
 			rti.rgbToByte(rti.img.At(x, y), y*rti.Width+x)
 		}
 	}
+}
+
+func (rti *RTImage) String() string {
+	return fmt.Sprintf("%d, %d, %s, %d", rti.Width, rti.Height, rti.format, len(rti.bdata))
 }

@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	padding  = 2
-	maxWidth = 80
+	padding  = 8
+	maxWidth = 160
 )
 
 // Model to represent the state of the progress bar and stopwatch.
@@ -23,6 +23,7 @@ type model struct {
 	progressbar progress.Model
 }
 
+// initialize the stopwatch
 func (m model) Init() tea.Cmd {
 	return m.stopwatch.Init()
 }
@@ -36,17 +37,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case tea.WindowSizeMsg:
-		m.progressbar.Width = msg.Width - padding*2 - 4
+		// Resize the progress bar dynamically
+		m.progressbar.PercentageStyle.PaddingLeft(padding)
+		m.progressbar.Width = msg.Width - padding - 4
 		if m.progressbar.Width > maxWidth {
 			m.progressbar.Width = maxWidth
 		}
 		return m, nil
-	case string:
-		if msg == "Start" {
-			if !m.stopwatch.Running() {
-				m.stopwatch.Start()
-			}
-		}
 	case int:
 		// Update progress
 		m.currentItem += msg
@@ -68,6 +65,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // Returns a string representation of the progress bar and stopwatch.
 func (m model) View() string {
 	if m.currentItem >= m.totalItems {
+		// Print summary
 		m.stopwatch.Stop()
 		return fmt.Sprintf("Done after %s\n", m.stopwatch.View())
 	}
@@ -76,13 +74,6 @@ func (m model) View() string {
 	percent := float64(m.currentItem) / float64(m.totalItems)
 	out := fmt.Sprintf("\n %s Time Elapsed: %s\n", m.progressbar.ViewAs(percent), m.stopwatch.View())
 	return out
-}
-
-func (m model) StartStopwatch() {
-	if !m.stopwatch.Running() {
-		m.stopwatch.Start()
-	}
-
 }
 
 // Initialize a new progress bar model.

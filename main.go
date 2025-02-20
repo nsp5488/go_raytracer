@@ -127,8 +127,8 @@ func checkeredSpheres(c *camera.Camera) {
 }
 
 func earth(c *camera.Camera) {
-	c.AspectRatio = float64(16) / float64(9)
-	c.Width = 400
+	// c.AspectRatio = float64(16) / float64(9)
+	c.Width = 5
 	c.SamplesPerPixel = 50
 	c.MaxDepth = 50
 

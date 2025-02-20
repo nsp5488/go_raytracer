@@ -177,7 +177,7 @@ func RandomOnHemisphere(normal *Vec3) *Vec3 {
 
 // Returns a string representation of the vector
 func (v *Vec3) String() string {
-	return fmt.Sprintf("%f %f %f", v.X(), v.Y(), v.Z())
+	return fmt.Sprintf("(%f, %f, %f)", v.X(), v.Y(), v.Z())
 }
 
 func (v *Vec3) Equals(other *Vec3) bool {

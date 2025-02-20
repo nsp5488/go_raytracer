@@ -21,7 +21,6 @@ func linearToGamma(linearComponent float64) float64 {
 // There is no API prevention on calling this for any given vec3. I may refactor this into a Color struct at some point
 // Prints the color components of the vector to the given writer
 func (v *Vec3) PrintColor(out io.Writer) {
-
 	r := linearToGamma(v.e[0])
 	g := linearToGamma(v.e[1])
 	b := linearToGamma(v.e[2])
