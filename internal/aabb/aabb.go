@@ -15,6 +15,7 @@ type AABB struct {
 	z *interval.Interval
 }
 
+// Create an empty bounding box
 func EmptyBBox() *AABB {
 	return NewAABB(&interval.EMPTY, &interval.EMPTY, &interval.EMPTY)
 }
@@ -46,6 +47,8 @@ func FromPoints(a, b *vec.Vec3) *AABB {
 
 	return NewAABB(x, y, z)
 }
+
+// Create an AABB by combining two existing AABBs
 func FromBBoxes(a, b *AABB) *AABB {
 	x := interval.Combine(a.x, b.x)
 	y := interval.Combine(a.y, b.y)
@@ -53,6 +56,7 @@ func FromBBoxes(a, b *AABB) *AABB {
 	return NewAABB(x, y, z)
 }
 
+// Get the interval corresponding to the nth axis
 func (bb *AABB) AxisInterval(n int) *interval.Interval {
 	if n == 2 {
 		return bb.z
@@ -62,6 +66,8 @@ func (bb *AABB) AxisInterval(n int) *interval.Interval {
 	}
 	return bb.x
 }
+
+// Returns the largest axis in this BBox
 func (bb *AABB) LongestAxis() int {
 	if bb.x.Size() > bb.y.Size() {
 		if bb.x.Size() > bb.z.Size() {
@@ -78,6 +84,7 @@ func (bb *AABB) LongestAxis() int {
 	}
 }
 
+// Check if a ray intersects this bounding box
 func (bb *AABB) Hit(r *ray.Ray, rayT interval.Interval) bool {
 	direction := r.Direction()
 	origin := r.Origin()

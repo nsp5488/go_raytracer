@@ -16,6 +16,7 @@ type BVHNode struct {
 	bbox *aabb.AABB
 }
 
+// Builds a BVH out of a list of hittable objects
 func BuildBVH(list *HittableList) *BVHNode {
 	return bvhHelper(list, 0, len(list.objects))
 }
@@ -29,6 +30,7 @@ func boxCompare(a, b Hittable, axis int) bool {
 	return aAxis.Max < bAxis.Max
 }
 
+// Recursively build a BVH which is effectively a binary tree of AABBs and leaf nodes are concrete hittable objects
 func bvhHelper(list *HittableList, start, end int) *BVHNode {
 	bbox := aabb.EmptyBBox()
 	for i := start; i < end; i++ {
@@ -37,11 +39,14 @@ func bvhHelper(list *HittableList, start, end int) *BVHNode {
 	axis := bbox.LongestAxis()
 	objSpan := end - start
 	var l, r Hittable
+
 	if objSpan == 1 {
+		// if there's only one object, just duplicate it at the leaf node to avoid nil pointers in traversal
 		l, r = list.objects[start], list.objects[start]
 	} else if objSpan == 2 {
 		l, r = list.objects[start], list.objects[start+1]
 	} else {
+		// Sort the subslice and split it along the largest axis of its BBox
 		subslice := list.objects[start:end]
 		sort.Slice(subslice, func(i, j int) bool {
 			return boxCompare(subslice[i], subslice[j], axis)
@@ -58,6 +63,8 @@ func (bvh *BVHNode) BBox() *aabb.AABB {
 	return bvh.bbox
 }
 
+// This is effectively a search through the BST for the closest concrete hittable that the ray hits
+// Returns false if no child objects are hit by the ray
 func (bvh *BVHNode) Hit(r *ray.Ray, rayT interval.Interval, record *HitRecord) bool {
 	if !bvh.bbox.Hit(r, rayT) {
 		return false

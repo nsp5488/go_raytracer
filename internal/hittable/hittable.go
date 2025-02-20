@@ -13,7 +13,11 @@ type HitRecord struct {
 	normal    *vec.Vec3
 	t         float64
 	frontFace bool
-	Material  Material
+
+	u float64
+	v float64
+
+	Material Material
 }
 
 // Sets the face normal based on the ray direction and the normal vector

@@ -15,7 +15,17 @@ type Material interface {
 
 // Lambertian (matte) material.
 type Lambertian struct {
-	Albedo vec.Vec3
+	tex Texture
+}
+
+// Creates a new matte material
+func NewLambertian(albedo *vec.Vec3) *Lambertian {
+	return &Lambertian{tex: NewSolidColor(albedo)}
+}
+
+// A lambertian with an externally defined texture
+func NewTexturedLambertian(tex Texture) *Lambertian {
+	return &Lambertian{tex: tex}
 }
 
 // Scatter implements the Lambertian material's scattering behavior.
@@ -25,7 +35,7 @@ func (l Lambertian) Scatter(rayIn, rayOut *ray.Ray, record *HitRecord, attenuati
 		direction = record.Normal()
 	}
 	*rayOut = *ray.NewWithTime(record.P(), direction, rayIn.Time())
-	*attenuation = l.Albedo
+	*attenuation = *l.tex.Value(record.u, record.v, record.p)
 	return true
 }
 

@@ -81,6 +81,8 @@ func (v *Vec3) Scale(t float64) *Vec3 {
 func (v *Vec3) Add(other *Vec3) *Vec3 {
 	return New(v.e[0]+other.e[0], v.e[1]+other.e[1], v.e[2]+other.e[2])
 }
+
+// Subtracts thee given vector from the current vector and returns the result
 func (v *Vec3) Sub(other *Vec3) *Vec3 {
 	return New(v.e[0]-other.e[0], v.e[1]-other.e[1], v.e[2]-other.e[2])
 }

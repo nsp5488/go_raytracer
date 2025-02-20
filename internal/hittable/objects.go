@@ -18,11 +18,14 @@ type Sphere struct {
 	bbox     *aabb.AABB
 }
 
+// Creates a new sphere
 func NewSphere(center vec.Vec3, radius float64, material Material) *Sphere {
 	rvec := vec.New(radius, radius, radius)
 	bbox := aabb.FromPoints(center.Sub(rvec), center.Add(rvec))
 	return &Sphere{Center: *ray.New(&center, vec.Empty()), Radius: radius, Material: material, bbox: bbox}
 }
+
+// Creates a new sphere with motion blur
 func NewMotionSphere(center1, center2 vec.Vec3, radius float64, material Material) *Sphere {
 	rvec := vec.New(radius, radius, radius)
 	center := *ray.New(&center1, center2.Sub(&center1))
@@ -33,6 +36,16 @@ func NewMotionSphere(center1, center2 vec.Vec3, radius float64, material Materia
 }
 func (s *Sphere) BBox() *aabb.AABB {
 	return s.bbox
+}
+
+// Calculates the UV values of the ray intersection of a given sphere
+// and stores them in (u, v)
+func calculateSphereUV(point *vec.Vec3, u, v *float64) {
+	theta := math.Acos(-point.Y())
+	phi := math.Atan2(-point.Z(), point.X()) + math.Pi
+
+	*u = phi / (2 * math.Pi)
+	*v = theta / math.Pi
 }
 
 // Hit checks if a ray intersects with the sphere.
@@ -66,5 +79,6 @@ func (s *Sphere) Hit(r *ray.Ray, rayT interval.Interval, record *HitRecord) bool
 	outward_normal := record.p.Sub(curCenter).Scale(1 / s.Radius)
 	record.setFaceNormal(r, outward_normal)
 	record.Material = s.Material
+	calculateSphereUV(outward_normal, &record.u, &record.v)
 	return true
 }
