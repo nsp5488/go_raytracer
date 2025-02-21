@@ -58,6 +58,13 @@ type HittableList struct {
 	bbox *aabb.AABB
 }
 
+func NewHittableList(objects []Hittable) *HittableList {
+	hl := &HittableList{}
+	hl.Init(len(objects))
+	copy(hl.objects, objects)
+	return hl
+}
+
 func (hl *HittableList) Init(startSize int) {
 	hl.objects = make([]Hittable, 0, startSize)
 	hl.bbox = aabb.EmptyBBox()

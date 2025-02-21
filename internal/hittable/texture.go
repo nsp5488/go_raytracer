@@ -86,3 +86,42 @@ func (it *ImageTexture) Value(u, v float64, point *vec.Vec3) *vec.Vec3 {
 	scale := 1.0 / 255.0
 	return vec.New(float64(pixel.Data[0])*scale, float64(pixel.Data[1])*scale, float64(pixel.Data[2])*scale)
 }
+
+type perlinType uint8
+
+const (
+	_ perlinType = iota
+	PERLIN
+	MARBLE
+	TURBULENT
+)
+
+type NoiseTexture struct {
+	noise   *Perlin
+	scale   float64
+	variant perlinType
+}
+
+func NewNoiseTexture(scale float64) *NoiseTexture {
+	return &NoiseTexture{noise: NewPerlin(), scale: scale, variant: PERLIN}
+}
+
+func NewNoiseTextureWithType(scale float64, variant perlinType) *NoiseTexture {
+	return &NoiseTexture{noise: NewPerlin(), scale: scale, variant: variant}
+
+}
+
+func (nt *NoiseTexture) Value(u, v float64, point *vec.Vec3) *vec.Vec3 {
+	switch nt.variant {
+	case PERLIN:
+		return vec.New(1, 1, 1).Scale(.5 * (1.0 + nt.noise.Noise(point.Scale(nt.scale))))
+	case MARBLE:
+		return vec.New(.5, .5, .5).Scale(1 + math.Sin(nt.scale*point.Z()+10*nt.noise.Turbulence(point, 7)))
+	case TURBULENT:
+		return vec.New(1, 1, 1).Scale(1 + 0.5*nt.noise.Turbulence(point, 7))
+	}
+
+	// should be impossible, but we'll default to perlin
+	nt.variant = PERLIN
+	return vec.New(1, 1, 1).Scale(.5 * (1.0 + nt.noise.Noise(point.Scale(nt.scale))))
+}

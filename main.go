@@ -15,34 +15,30 @@ import (
 )
 
 // Creates a simple test world.
-// func testWorld() *hittable.HittableList {
-// 	// define our materials
-// 	// matte
-// 	ground := hittable.Lambertian{Albedo: *vec.New(0.8, 0.8, 0)}
-// 	center := hittable.Lambertian{Albedo: *vec.New(0.1, .2, .5)}
+func testWorld(c *camera.Camera) {
+	// define our materials
+	// matte
+	ground := hittable.NewLambertian(vec.New(0.8, 0.8, 0))
+	center := hittable.NewLambertian(vec.New(0.1, .2, .5))
+	// glass
+	left := hittable.NewDielectric(1.50)
 
-// 	// glass
-// 	left := hittable.Dielectric{RefractionIndex: 1.50}
+	// models an air bubble
+	bubble := hittable.NewDielectric(1.0 / 1.5)
 
-// 	// models an air bubble
-// 	bubble := hittable.Dielectric{RefractionIndex: 1.0 / 1.5}
+	// metal
+	right := hittable.NewMetal(vec.New(0.8, 0.6, 0.2), 1.0)
+	// Define the "world"
+	world := &hittable.HittableList{}
+	world.Init(5)
+	world.Add(hittable.NewSphere(*vec.New(0, -100.5, -1), 100, ground))
+	world.Add(hittable.NewSphere(*vec.New(0, 0, -1.2), 0.5, center))
+	world.Add(hittable.NewSphere(*vec.New(-1, 0, -1), 0.5, left))
+	world.Add(hittable.NewSphere(*vec.New(-1, 0, -1), 0.4, bubble))
+	world.Add(hittable.NewSphere(*vec.New(1, 0, -1), 0.5, right))
 
-// 	// metal
-// 	right := hittable.Metal{Albedo: *vec.New(0.8, 0.6, 0.2), Fuzz: 1.0}
-
-// 	// Define the "world"
-// 	world := &hittable.HittableList{}
-// 	world.Init(5)
-// 	world.Add(hittable.NewSphere(*vec.New(0, -100.5, -1), 100, &ground))
-// 	world.Add(hittable.NewSphere(*vec.New(0, 0, -1.2), 0.5, &center))
-// 	world.Add(hittable.NewSphere(*vec.New(-1, 0, -1), 0.5, &left))
-// 	world.Add(hittable.NewSphere(*vec.New(-1, 0, -1), 0.4, &bubble))
-// 	world.Add(hittable.NewSphere(*vec.New(1, 0, -1), 0.5, &right))
-// 	w := &hittable.HittableList{}
-// 	w.Init(1)
-// 	w.Add(hittable.BuildBVH(world))
-// 	return w
-// }
+	c.Render(hittable.NewHittableList([]hittable.Hittable{hittable.BuildBVH(world)}))
+}
 
 // Creates the world from the cover of Ray Tracing in One Weekend.
 func coverWorld(c *camera.Camera) {
@@ -127,8 +123,8 @@ func checkeredSpheres(c *camera.Camera) {
 }
 
 func earth(c *camera.Camera) {
-	// c.AspectRatio = float64(16) / float64(9)
-	c.Width = 5
+	c.AspectRatio = float64(16) / float64(9)
+	c.Width = 500
 	c.SamplesPerPixel = 50
 	c.MaxDepth = 50
 
@@ -144,6 +140,26 @@ func earth(c *camera.Camera) {
 	c.Render(l)
 }
 
+func perlin(cam *camera.Camera) {
+	world := &hittable.HittableList{}
+	world.Init(2)
+	p := hittable.NewNoiseTexture(4)
+	s1 := hittable.NewSphere(*vec.New(0, -1000, 0), 1000, hittable.NewTexturedLambertian(p))
+	s2 := hittable.NewSphere(*vec.New(0, 2, 0), 2, hittable.NewTexturedLambertian(p))
+	world.Add(s1)
+	world.Add(s2)
+	cam.AspectRatio = 16.0 / 9.0
+	cam.Width = 400
+	cam.SamplesPerPixel = 100
+	cam.MaxDepth = 50
+
+	cam.VerticalFOV = 20
+	cam.PositionCamera(vec.New(13, 2, 3), vec.New(0, 0, 0), vec.New(0, 1, 0))
+
+	cam.DefocusAngle = 0
+
+	cam.Render(world)
+}
 func main() {
 	cpuprofile := flag.String("cpuprofile", "", "Write cpu profile to file")
 	outFile := flag.String("o", "image.ppm", "Specify a custom output file")
@@ -174,9 +190,10 @@ func main() {
 	c := camera.Camera{}
 	c.Out = &outBuf
 	c.MaxThreads = *coreCount
-
+	// testWorld(&c)
 	// coverWorld(&c)
 	// checkeredSpheres(&c)
-	earth(&c)
+	// earth(&c)
+	perlin(&c)
 	file.Write(outBuf.Bytes())
 }

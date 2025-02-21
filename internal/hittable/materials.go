@@ -45,6 +45,10 @@ type Metal struct {
 	Fuzz   float64
 }
 
+func NewMetal(albedo *vec.Vec3, fuzz float64) *Metal {
+	return &Metal{Albedo: *albedo, Fuzz: fuzz}
+}
+
 // Scatter implements the metal material's scattering behavior.
 func (m Metal) Scatter(rayIn, rayOut *ray.Ray, record *HitRecord, attenuation *vec.Vec3) bool {
 	reflected := rayIn.Direction().Reflect(record.normal)
@@ -57,6 +61,10 @@ func (m Metal) Scatter(rayIn, rayOut *ray.Ray, record *HitRecord, attenuation *v
 // Dielectric material.
 type Dielectric struct {
 	RefractionIndex float64
+}
+
+func NewDielectric(refractionIndex float64) *Dielectric {
+	return &Dielectric{RefractionIndex: refractionIndex}
 }
 
 // Scatter implements the dielectric material's scattering behavior.
