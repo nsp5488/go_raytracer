@@ -22,7 +22,9 @@ func EmptyBBox() *AABB {
 
 // Constructs a new AABB
 func NewAABB(x, y, z *interval.Interval) *AABB {
-	return &AABB{x: x, y: y, z: z}
+	bb := &AABB{x: x, y: y, z: z}
+	bb.padToMinimum()
+	return bb
 }
 
 // Constructs an AABB from two points
@@ -111,4 +113,17 @@ func (bb *AABB) Hit(r *ray.Ray, rayT interval.Interval) bool {
 }
 func (bb *AABB) String() string {
 	return fmt.Sprintf("X: (%f,%f), Y: (%f,%f), Z: (%f, %f)", bb.x.Min, bb.x.Max, bb.y.Min, bb.y.Max, bb.z.Min, bb.z.Max)
+}
+
+func (bb *AABB) padToMinimum() {
+	delta := 0.0001
+	if bb.x.Size() < delta {
+		bb.x = bb.x.Expand(delta)
+	}
+	if bb.y.Size() < delta {
+		bb.y = bb.y.Expand(delta)
+	}
+	if bb.z.Size() < delta {
+		bb.z = bb.z.Expand(delta)
+	}
 }

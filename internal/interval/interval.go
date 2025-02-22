@@ -51,10 +51,14 @@ func (i *Interval) Expand(delta float64) *Interval {
 
 var EMPTY = Interval{math.Inf(1), math.Inf(-1)}
 var UNIVERSE = Interval{math.Inf(-1), math.Inf(1)}
+var UNIT = Interval{0, 1}
 
 func Empty() *Interval {
 	return &EMPTY
 }
 func Universe() *Interval {
 	return &UNIVERSE
+}
+func Unit() *Interval {
+	return &UNIT
 }

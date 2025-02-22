@@ -160,6 +160,37 @@ func perlin(cam *camera.Camera) {
 
 	cam.Render(world)
 }
+
+func quads(cam *camera.Camera) {
+	world := &hittable.HittableList{}
+	world.Init(5)
+
+	leftRed := hittable.NewLambertian(vec.New(1, 0.2, 0.2))
+	backGreen := hittable.NewTexturedLambertian(hittable.NewNoiseTextureWithType(5, hittable.MARBLE))
+	rightBlue := hittable.NewLambertian(vec.New(0.2, 0.2, 1.0))
+	upperOrange := hittable.NewLambertian(vec.New(1.0, 0.5, 0.0))
+	lowerTeal := hittable.NewLambertian(vec.New(0.2, 0.8, 0.8))
+
+	world.Add(hittable.NewQuad(vec.New(-3, -2, 5), vec.New(0, 0, -4), vec.New(0, 4, 0), leftRed))
+	world.Add(hittable.NewQuad(vec.New(-2, -2, 0), vec.New(4, 0, 0), vec.New(0, 4, 0), backGreen))
+	world.Add(hittable.NewQuad(vec.New(3, -2, 1), vec.New(0, 0, 4), vec.New(0, 4, 0), rightBlue))
+	world.Add(hittable.NewQuad(vec.New(-2, 3, 1), vec.New(4, 0, 0), vec.New(0, 0, 4), upperOrange))
+	world.Add(hittable.NewQuad(vec.New(-2, -3, 5), vec.New(4, 0, 0), vec.New(0, 0, -4), lowerTeal))
+	bvh := hittable.BuildBVH(world)
+	w := &hittable.HittableList{}
+	w.Init(1)
+	w.Add(bvh)
+
+	cam.AspectRatio = 1.0
+	cam.Width = 400
+	cam.SamplesPerPixel = 100
+	cam.MaxDepth = 50
+
+	cam.VerticalFOV = 80
+	cam.PositionCamera(vec.New(0, 0, 9), vec.New(00, 0, 0), vec.New(0, 1, 0))
+	cam.DefocusAngle = 0
+	cam.Render(w)
+}
 func main() {
 	cpuprofile := flag.String("cpuprofile", "", "Write cpu profile to file")
 	outFile := flag.String("o", "image.ppm", "Specify a custom output file")
@@ -194,6 +225,7 @@ func main() {
 	// coverWorld(&c)
 	// checkeredSpheres(&c)
 	// earth(&c)
-	perlin(&c)
+	// perlin(&c)
+	quads(&c)
 	file.Write(outBuf.Bytes())
 }

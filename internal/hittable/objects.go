@@ -82,3 +82,78 @@ func (s *Sphere) Hit(r *ray.Ray, rayT interval.Interval, record *HitRecord) bool
 	calculateSphereUV(outward_normal, &record.u, &record.v)
 	return true
 }
+
+type Quad struct {
+	Q      *vec.Vec3 // One corner of the plane
+	u      *vec.Vec3 // u,v are vectors that point from Q to two other corners
+	v      *vec.Vec3
+	normal *vec.Vec3 // normal = unit(u x v)
+	w      *vec.Vec3
+	D      float64 // D = Ax + By + Cz = dot(Q, normal)
+
+	bbox     *aabb.AABB
+	material Material
+}
+
+func NewQuad(Q, u, v *vec.Vec3, material Material) *Quad {
+	q := &Quad{Q: Q, u: u, v: v, material: material}
+
+	n := u.Cross(v)
+
+	q.normal = n.UnitVector()
+	q.D = q.normal.Dot(Q)
+	q.w = n.Scale(1 / n.Dot(n))
+
+	q.setBBox()
+	return q
+}
+
+func (q *Quad) setBBox() {
+	diag1 := aabb.FromPoints(q.Q, q.Q.Add(q.u).Add(q.v))
+	diag2 := aabb.FromPoints(q.Q.Add(q.u), q.Q.Add(q.v))
+	q.bbox = aabb.FromBBoxes(diag1, diag2)
+}
+
+func (q *Quad) BBox() *aabb.AABB {
+	return q.bbox
+}
+func (q *Quad) Hit(r *ray.Ray, rayT interval.Interval, record *HitRecord) bool {
+	denom := q.normal.Dot(r.Direction())
+
+	// Low values in denominator -> ray is parallel to the plane
+	if math.Abs(denom) < 1e-8 {
+		return false
+	}
+
+	// If t lands outside of our search interval
+	t := (q.D - q.normal.Dot(r.Origin())) / denom
+	if !rayT.Contains(t) {
+		return false
+	}
+
+	intersection := r.At(t)
+
+	// Check that the ray intersects the quad itself, not just the plane
+	planarHitpoint := intersection.Sub(q.Q)
+	alpha := q.w.Dot(planarHitpoint.Cross(q.v))
+	beta := q.w.Dot(q.u.Cross(planarHitpoint))
+	if !isInterior(alpha, beta, record) {
+		return false
+	}
+
+	record.t = t
+	record.p = intersection
+	record.Material = q.material
+	record.setFaceNormal(r, q.normal)
+	return true
+}
+
+func isInterior(alpha, beta float64, record *HitRecord) bool {
+	if !interval.Unit().Contains(alpha) || !interval.Unit().Contains(beta) {
+		return false
+	}
+
+	record.u = alpha
+	record.v = beta
+	return true
+}
