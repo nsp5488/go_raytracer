@@ -106,22 +106,39 @@ func (d Dielectric) reflectance(cosine float64) float64 {
 	return r0 + (1-r0)*math.Pow(1-cosine, 5)
 }
 
-type DiffuseLight struct {
+type diffuseLight struct {
 	tex Texture
 }
 
-func NewDiffuseLight(color *vec.Vec3) *DiffuseLight {
-	return &DiffuseLight{tex: NewSolidColor(color)}
+func NewDiffuseLight(color *vec.Vec3) *diffuseLight {
+	return &diffuseLight{tex: NewSolidColor(color)}
 }
-func newDiffuseLightTextured(tex Texture) *DiffuseLight {
-	return &DiffuseLight{tex: tex}
+func newDiffuseLightTextured(tex Texture) *diffuseLight {
+	return &diffuseLight{tex: tex}
 }
 
-func (dl DiffuseLight) Scatter(rayIn, rayOut *ray.Ray, record *HitRecord, attenuation *vec.Vec3) bool {
+func (dl diffuseLight) Scatter(rayIn, rayOut *ray.Ray, record *HitRecord, attenuation *vec.Vec3) bool {
 	*attenuation = *vec.New(1, 1, 1)
 	return false
 }
 
-func (dl DiffuseLight) Emitted(u, v float64, point *vec.Vec3) *vec.Vec3 {
+func (dl diffuseLight) Emitted(u, v float64, point *vec.Vec3) *vec.Vec3 {
 	return dl.tex.Value(u, v, point)
+}
+
+type isotropic struct {
+	tex Texture
+}
+
+func NewIsotropicTexture(tex Texture) *isotropic {
+	return &isotropic{tex: tex}
+}
+func NewIsotropic(albedo *vec.Vec3) *isotropic {
+	return &isotropic{tex: NewSolidColor(albedo)}
+}
+
+func (i *isotropic) Scatter(rayIn, rayOut *ray.Ray, record *HitRecord, attenuation *vec.Vec3) bool {
+	*rayOut = *ray.NewWithTime(record.p, vec.RandomUnitVector(), rayIn.Time())
+	*attenuation = *i.tex.Value(record.u, record.v, record.p)
+	return true
 }

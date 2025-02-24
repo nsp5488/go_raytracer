@@ -245,12 +245,10 @@ func cornellBox(cam *camera.Camera) {
 	world.Add(hittable.NewQuad(vec.New(0, 0, 555), vec.New(555, 0, 0), vec.New(0, 555, 0), white))
 
 	// boxes
-	// world.Add(hittable.NewBox(vec.New(130, 0, 65), vec.New(295, 165, 230), white))
 	b1 := hittable.NewBox(vec.New(0, 0, 0), vec.New(165, 330, 165), white)
 	b1 = hittable.RotateY(b1, 15)
 	b1 = hittable.Translate(b1, vec.New(265, 0, 295))
 
-	// b2 := hittable.NewBox(vec.New(265, 0, 295), vec.New(430, 330, 460), white)
 	b2 := hittable.NewBox(vec.New(0, 0, 0), vec.New(165, 165, 165), white)
 	b2 = hittable.RotateY(b2, -18)
 	b2 = hittable.Translate(b2, vec.New(130, 0, 65))
@@ -272,6 +270,52 @@ func cornellBox(cam *camera.Camera) {
 	w.Add(hittable.BuildBVH(world))
 	cam.Render(world)
 }
+func cornellSmoke(cam *camera.Camera) {
+	world := &hittable.HittableList{}
+	world.Init(10)
+
+	red := hittable.NewLambertian(vec.New(.65, .05, .05))
+	white := hittable.NewLambertian(vec.New(.73, .73, .73))
+	green := hittable.NewLambertian(vec.New(.12, .45, .15))
+	light := hittable.NewDiffuseLight(vec.New(15, 15, 15))
+
+	// walls and light
+	world.Add(hittable.NewQuad(vec.New(555, 0, 0), vec.New(0, 555, 0), vec.New(0, 0, 555), green))
+	world.Add(hittable.NewQuad(vec.New(0, 0, 0), vec.New(0, 555, 0), vec.New(0, 0, 555), red))
+	world.Add(hittable.NewQuad(vec.New(343, 550, 332), vec.New(-130, 0, 0), vec.New(0, 0, -105), light))
+	world.Add(hittable.NewQuad(vec.New(0, 0, 0), vec.New(555, 0, 0), vec.New(0, 0, 555), white))
+	world.Add(hittable.NewQuad(vec.New(555, 555, 555), vec.New(-555, 0, 0), vec.New(0, 0, -555), white))
+	world.Add(hittable.NewQuad(vec.New(0, 0, 555), vec.New(555, 0, 0), vec.New(0, 555, 0), white))
+
+	// boxes
+	b1 := hittable.NewBox(vec.New(0, 0, 0), vec.New(165, 330, 165), white)
+	b1 = hittable.RotateY(b1, 15)
+	b1 = hittable.Translate(b1, vec.New(265, 0, 295))
+
+	b2 := hittable.NewBox(vec.New(0, 0, 0), vec.New(165, 165, 165), white)
+	b2 = hittable.RotateY(b2, -18)
+	b2 = hittable.Translate(b2, vec.New(130, 0, 65))
+
+	// smoke
+	world.Add(hittable.ConstantMedium(b1, .01, vec.Empty()))
+	world.Add(hittable.ConstantMedium(b2, .01, vec.New(1, 1, 1)))
+
+	cam.AspectRatio = 1.0
+	cam.Width = 600
+	cam.SamplesPerPixel = 200
+	cam.MaxDepth = 50
+
+	cam.Background = vec.Empty()
+	cam.VerticalFOV = 40
+	cam.PositionCamera(vec.New(278, 278, -800), vec.New(278, 278, 0), vec.New(0, 1, 0))
+	cam.DefocusAngle = 0
+
+	w := &hittable.HittableList{}
+	w.Init(1)
+	w.Add(hittable.BuildBVH(world))
+	cam.Render(world)
+}
+
 func main() {
 	cpuprofile := flag.String("cpuprofile", "", "Write cpu profile to file")
 	outFile := flag.String("o", "image.ppm", "Specify a custom output file")
@@ -309,6 +353,7 @@ func main() {
 	// perlin(&c)
 	// quads(&c)
 	// simpleLight(&c)
-	cornellBox(&c)
+	// cornellBox(&c)
+	cornellSmoke(&c)
 	file.Write(outBuf.Bytes())
 }
