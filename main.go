@@ -315,6 +315,88 @@ func cornellSmoke(cam *camera.Camera) {
 	w.Add(hittable.BuildBVH(world))
 	cam.Render(world)
 }
+func book2Scene(cam *camera.Camera) {
+	boxes1 := &hittable.HittableList{}
+	boxes1.Init(20 * 20)
+	groundColor := hittable.NewLambertian(vec.New(.48, .83, .53))
+
+	// floor
+	boxesPerSide := 20
+	for i := 0; i < boxesPerSide; i++ {
+		for j := 0; j < boxesPerSide; j++ {
+			w := 100.0
+			x0 := -1000.0 + float64(i)*w
+			z0 := -1000.0 + float64(j)*w
+			y0 := 0.0
+			x1 := x0 + w
+			y1 := util.RangeRange(1, 101)
+			z1 := z0 + w
+			boxes1.Add(hittable.NewBox(vec.New(x0, y0, z0), vec.New(x1, y1, z1), groundColor))
+		}
+	}
+	world := &hittable.HittableList{}
+	world.Init(12)
+	world.Add(hittable.BuildBVH(boxes1))
+
+	// light
+	light := hittable.NewDiffuseLight(vec.New(7, 7, 7))
+	world.Add(hittable.NewQuad(vec.New(123, 554, 147), vec.New(300, 0, 0), vec.New(0, 0, 265), light))
+
+	// motion blur
+	c1 := vec.New(400, 400, 200)
+	c2 := c1.Add(vec.New(30, 0, 0))
+	sphereMat := hittable.NewLambertian(vec.New(.7, .3, .1))
+	world.Add(hittable.NewMotionSphere(*c1, *c2, 50, sphereMat))
+
+	// glass orb
+	world.Add(hittable.NewSphere(*vec.New(260, 150, 45), 50, hittable.NewDielectric(1.5)))
+
+	// metal orb
+	world.Add(hittable.NewSphere(*vec.New(0, 150, 145), 50, hittable.NewMetal(vec.New(0.8, 0.8, 0.9), 1.0)))
+
+	// water orb
+	boundary := hittable.NewSphere(*vec.New(360, 150, 145), 70, hittable.NewDielectric(1.5))
+	world.Add(boundary)
+	world.Add(hittable.ConstantMedium(boundary, .2, vec.New(0.2, 0.4, 0.9)))
+
+	// fog
+	b2 := hittable.NewSphere(*vec.New(0, 0, 0), 5000, hittable.NewDielectric(1.5))
+	world.Add(hittable.ConstantMedium(b2, .0001, vec.New(1, 1, 1)))
+
+	// earth
+	eMat := hittable.NewTexturedLambertian(hittable.NewImageTexture("earthmap.jpg"))
+	world.Add(hittable.NewSphere(*vec.New(400, 200, 400), 100, eMat))
+
+	// perlin
+	p := hittable.NewTexturedLambertian(hittable.NewNoiseTextureWithType(.2, hittable.MARBLE))
+	world.Add(hittable.NewSphere(*vec.New(220, 280, 300), 80, p))
+
+	// weird spheres
+	boxes2 := &hittable.HittableList{}
+	boxes2.Init(1000)
+	white := hittable.NewLambertian(vec.New(.73, .73, .73))
+	ns := 1000
+	for i := 0; i < ns; i++ {
+		boxes2.Add(hittable.NewSphere(*vec.RangeRandom(0, 165), 10, white))
+	}
+	world.Add(
+		hittable.Translate(
+			hittable.RotateY(hittable.BuildBVH(boxes2), 15),
+			vec.New(-100, 270, 395)),
+	)
+	cam.AspectRatio = 1.0
+	cam.Width = 800
+	cam.SamplesPerPixel = 10000
+	cam.MaxDepth = 40
+	cam.Background = vec.Empty()
+
+	cam.VerticalFOV = 40
+	cam.PositionCamera(vec.New(478, 278, -600), vec.New(278, 278, 0), vec.New(0, 1, 0))
+
+	cam.DefocusAngle = 0
+
+	cam.Render(world)
+}
 
 func main() {
 	cpuprofile := flag.String("cpuprofile", "", "Write cpu profile to file")
@@ -354,6 +436,7 @@ func main() {
 	// quads(&c)
 	// simpleLight(&c)
 	// cornellBox(&c)
-	cornellSmoke(&c)
+	// cornellSmoke(&c)
+	book2Scene(&c)
 	file.Write(outBuf.Bytes())
 }
