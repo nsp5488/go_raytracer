@@ -52,7 +52,8 @@ func (p *Perlin) Noise(point *vec.Vec3) float64 {
 // Sums repeated calls to Noise to generate a turbulent texture
 func (p *Perlin) Turbulence(point *vec.Vec3, depth int) float64 {
 	accum := 0.0
-	temp_p := point
+	temp_p := &vec.Vec3{}
+	*temp_p = *point
 	weight := 1.0
 
 	for i := 0; i < depth; i++ {

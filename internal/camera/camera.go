@@ -32,6 +32,7 @@ type Camera struct {
 	VerticalFOV     float64
 	DefocusAngle    float64
 	FocusDistance   float64
+	Background      *vec.Vec3
 
 	// private members
 	groupSize         chan struct{}
@@ -273,18 +274,22 @@ func (c *Camera) rayColor(r *ray.Ray, world *hittable.HittableList, depth int) *
 		return vec.Empty()
 	}
 	rec := hittable.HitRecord{}
-
-	if world.Hit(r, *interval.New(0.001, math.Inf(1)), &rec) {
-		scattered := &ray.Ray{}
-		attenuation := &vec.Vec3{}
-		if rec.Material.Scatter(r, scattered, &rec, attenuation) {
-			return attenuation.Multiply(c.rayColor(scattered, world, depth-1))
-		}
-		return vec.Empty()
+	if !world.Hit(r, *interval.New(0.001, math.Inf(1)), &rec) {
+		return c.Background
 	}
-	unitDirection := r.Direction().UnitVector()
-	a := 0.5 * (unitDirection.Y() + 1.0)
-	c1 := vec.New(1, 1, 1).Scale(1.0 - a)
-	c2 := vec.New(0.5, 0.7, 1).Scale(a)
-	return c1.Add(c2)
+
+	emitColor := vec.Empty()
+	if emit, ok := rec.Material.(hittable.EmissiveMaterial); ok {
+		emitColor = emit.Emitted(rec.U(), rec.V(), rec.P())
+	}
+
+	scattered := &ray.Ray{}
+	attenuation := &vec.Vec3{}
+	scatterColor := vec.Empty()
+	if !rec.Material.Scatter(r, scattered, &rec, attenuation) {
+		return emitColor
+	}
+	scatterColor = attenuation.Multiply(c.rayColor(scattered, world, depth-1))
+
+	return emitColor.Add(scatterColor)
 }

@@ -158,10 +158,10 @@ func RandomUnitDisk() *Vec3 {
 // Generates a random unit vector in the unit sphere
 func RandomUnitVector() *Vec3 {
 	for {
-		p := Random()
+		p := RangeRandom(-1, 1)
 		lenSq := p.LengthSquared()
 		if 1e-160 < lenSq && lenSq <= 1 {
-			return p.Scale(math.Sqrt(lenSq))
+			return p.Scale(1 / math.Sqrt(lenSq))
 		}
 	}
 }

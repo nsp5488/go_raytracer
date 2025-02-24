@@ -36,6 +36,7 @@ func testWorld(c *camera.Camera) {
 	world.Add(hittable.NewSphere(*vec.New(-1, 0, -1), 0.5, left))
 	world.Add(hittable.NewSphere(*vec.New(-1, 0, -1), 0.4, bubble))
 	world.Add(hittable.NewSphere(*vec.New(1, 0, -1), 0.5, right))
+	c.Background = vec.New(0.70, 0.80, 1.00)
 
 	c.Render(hittable.NewHittableList([]hittable.Hittable{hittable.BuildBVH(world)}))
 }
@@ -52,6 +53,7 @@ func coverWorld(c *camera.Camera) {
 
 	c.DefocusAngle = 0.6
 	c.FocusDistance = 10.0
+	c.Background = vec.New(0.70, 0.80, 1.00)
 
 	world := &hittable.HittableList{}
 	world.Init(4 + 22*21)
@@ -117,6 +119,7 @@ func checkeredSpheres(c *camera.Camera) {
 
 	c.VerticalFOV = 20
 	c.PositionCamera(vec.New(13, 2, 3), vec.New(0, 0, 0), vec.New(0, 1, 0))
+	c.Background = vec.New(0.70, 0.80, 1.00)
 
 	c.DefocusAngle = 0
 	c.Render(w)
@@ -130,6 +133,7 @@ func earth(c *camera.Camera) {
 
 	c.VerticalFOV = 20
 	c.PositionCamera(vec.New(0, 0, 12), vec.New(0, 0, 0), vec.New(0, 1, 0))
+	c.Background = vec.New(0.70, 0.80, 1.00)
 
 	c.DefocusAngle = 0
 	l := &hittable.HittableList{}
@@ -143,7 +147,7 @@ func earth(c *camera.Camera) {
 func perlin(cam *camera.Camera) {
 	world := &hittable.HittableList{}
 	world.Init(2)
-	p := hittable.NewNoiseTexture(4)
+	p := hittable.NewNoiseTextureWithType(4, hittable.MARBLE)
 	s1 := hittable.NewSphere(*vec.New(0, -1000, 0), 1000, hittable.NewTexturedLambertian(p))
 	s2 := hittable.NewSphere(*vec.New(0, 2, 0), 2, hittable.NewTexturedLambertian(p))
 	world.Add(s1)
@@ -155,6 +159,7 @@ func perlin(cam *camera.Camera) {
 
 	cam.VerticalFOV = 20
 	cam.PositionCamera(vec.New(13, 2, 3), vec.New(0, 0, 0), vec.New(0, 1, 0))
+	cam.Background = vec.New(0.70, 0.80, 1.00)
 
 	cam.DefocusAngle = 0
 
@@ -185,11 +190,87 @@ func quads(cam *camera.Camera) {
 	cam.Width = 400
 	cam.SamplesPerPixel = 100
 	cam.MaxDepth = 50
+	cam.Background = vec.New(0.70, 0.80, 1.00)
 
 	cam.VerticalFOV = 80
-	cam.PositionCamera(vec.New(0, 0, 9), vec.New(00, 0, 0), vec.New(0, 1, 0))
+	cam.PositionCamera(vec.New(0, 0, 9), vec.New(0, 0, 0), vec.New(0, 1, 0))
 	cam.DefocusAngle = 0
 	cam.Render(w)
+}
+
+func simpleLight(cam *camera.Camera) {
+	world := &hittable.HittableList{}
+	world.Init(4)
+	p := hittable.NewNoiseTextureWithType(4, hittable.MARBLE)
+	l := hittable.NewDiffuseLight(vec.New(4, 4, 4))
+
+	s1 := hittable.NewSphere(*vec.New(0, -1000, 0), 1000, hittable.NewTexturedLambertian(p))
+	s2 := hittable.NewSphere(*vec.New(0, 2, 0), 2, hittable.NewTexturedLambertian(p))
+	q := hittable.NewQuad(vec.New(3, 1, -2), vec.New(2, 0, 0), vec.New(0, 2, 0), l)
+	s := hittable.NewSphere(*vec.New(0, 7, 0), 2, l)
+	world.Add(q)
+	world.Add(s1)
+	world.Add(s2)
+	world.Add(s)
+	cam.AspectRatio = 16.0 / 9.0
+	cam.Width = 400
+	cam.SamplesPerPixel = 100
+	cam.MaxDepth = 50
+	cam.Background = vec.New(0, 0, 0)
+
+	cam.VerticalFOV = 20
+	cam.PositionCamera(vec.New(26, 3, 6), vec.New(0, 2, 0), vec.New(0, 1, 0))
+
+	cam.DefocusAngle = 0
+
+	cam.Render(world)
+
+}
+
+func cornellBox(cam *camera.Camera) {
+	world := &hittable.HittableList{}
+	world.Init(8)
+
+	red := hittable.NewLambertian(vec.New(.65, .05, .05))
+	white := hittable.NewLambertian(vec.New(.73, .73, .73))
+	green := hittable.NewLambertian(vec.New(.12, .45, .15))
+	light := hittable.NewDiffuseLight(vec.New(15, 15, 15))
+
+	// walls and light
+	world.Add(hittable.NewQuad(vec.New(555, 0, 0), vec.New(0, 555, 0), vec.New(0, 0, 555), green))
+	world.Add(hittable.NewQuad(vec.New(0, 0, 0), vec.New(0, 555, 0), vec.New(0, 0, 555), red))
+	world.Add(hittable.NewQuad(vec.New(343, 550, 332), vec.New(-130, 0, 0), vec.New(0, 0, -105), light))
+	world.Add(hittable.NewQuad(vec.New(0, 0, 0), vec.New(555, 0, 0), vec.New(0, 0, 555), white))
+	world.Add(hittable.NewQuad(vec.New(555, 555, 555), vec.New(-555, 0, 0), vec.New(0, 0, -555), white))
+	world.Add(hittable.NewQuad(vec.New(0, 0, 555), vec.New(555, 0, 0), vec.New(0, 555, 0), white))
+
+	// boxes
+	// world.Add(hittable.NewBox(vec.New(130, 0, 65), vec.New(295, 165, 230), white))
+	b1 := hittable.NewBox(vec.New(0, 0, 0), vec.New(165, 330, 165), white)
+	b1 = hittable.RotateY(b1, 15)
+	b1 = hittable.Translate(b1, vec.New(265, 0, 295))
+
+	// b2 := hittable.NewBox(vec.New(265, 0, 295), vec.New(430, 330, 460), white)
+	b2 := hittable.NewBox(vec.New(0, 0, 0), vec.New(165, 165, 165), white)
+	b2 = hittable.RotateY(b2, -18)
+	b2 = hittable.Translate(b2, vec.New(130, 0, 65))
+
+	world.Add(b1)
+	world.Add(b2)
+	cam.AspectRatio = 1.0
+	cam.Width = 600
+	cam.SamplesPerPixel = 200
+	cam.MaxDepth = 50
+
+	cam.Background = vec.Empty()
+	cam.VerticalFOV = 40
+	cam.PositionCamera(vec.New(278, 278, -800), vec.New(278, 278, 0), vec.New(0, 1, 0))
+	cam.DefocusAngle = 0
+
+	w := &hittable.HittableList{}
+	w.Init(1)
+	w.Add(hittable.BuildBVH(world))
+	cam.Render(world)
 }
 func main() {
 	cpuprofile := flag.String("cpuprofile", "", "Write cpu profile to file")
@@ -226,6 +307,8 @@ func main() {
 	// checkeredSpheres(&c)
 	// earth(&c)
 	// perlin(&c)
-	quads(&c)
+	// quads(&c)
+	// simpleLight(&c)
+	cornellBox(&c)
 	file.Write(outBuf.Bytes())
 }

@@ -127,3 +127,7 @@ func (bb *AABB) padToMinimum() {
 		bb.z = bb.z.Expand(delta)
 	}
 }
+
+func (bb *AABB) VecOffset(offset *vec.Vec3) *AABB {
+	return NewAABB(bb.x.Offset(offset.X()), bb.y.Offset(offset.Y()), bb.z.Offset(offset.Z()))
+}

@@ -157,3 +157,38 @@ func isInterior(alpha, beta float64, record *HitRecord) bool {
 	record.v = beta
 	return true
 }
+
+func NewBox(a, b *vec.Vec3, mat Material) Hittable {
+	sides := &HittableList{}
+	sides.Init(6)
+
+	minVec := vec.New(
+		min(a.X(), b.X()),
+		min(a.Y(), b.Y()),
+		min(a.Z(), b.Z()),
+	)
+	maxVec := vec.New(
+		max(a.X(), b.X()),
+		max(a.Y(), b.Y()),
+		max(a.Z(), b.Z()),
+	)
+
+	dx := vec.New(maxVec.X()-minVec.X(), 0, 0)
+	dy := vec.New(0, maxVec.Y()-minVec.Y(), 0)
+	dz := vec.New(0, 0, maxVec.Z()-minVec.Z())
+
+	// front
+	sides.Add(NewQuad(vec.New(minVec.X(), minVec.Y(), maxVec.Z()), dx, dy, mat))
+	// right
+	sides.Add(NewQuad(vec.New(maxVec.X(), minVec.Y(), maxVec.Z()), dz.Negate(), dy, mat))
+	// back
+	sides.Add(NewQuad(vec.New(maxVec.X(), minVec.Y(), minVec.Z()), dx.Negate(), dy, mat))
+	// left
+	sides.Add(NewQuad(vec.New(minVec.X(), minVec.Y(), minVec.Z()), dz, dy, mat))
+	// top
+	sides.Add(NewQuad(vec.New(minVec.X(), maxVec.Y(), maxVec.Z()), dx, dz.Negate(), mat))
+	// bottom
+	sides.Add(NewQuad(vec.New(minVec.X(), minVec.Y(), minVec.Z()), dx, dz, mat))
+
+	return BuildBVH(sides)
+}

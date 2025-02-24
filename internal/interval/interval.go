@@ -48,6 +48,9 @@ func (i *Interval) Expand(delta float64) *Interval {
 	padding := delta / 2
 	return New(i.Min-padding, i.Max+padding)
 }
+func (i *Interval) Offset(offset float64) *Interval {
+	return New(i.Min+offset, i.Max+offset)
+}
 
 var EMPTY = Interval{math.Inf(1), math.Inf(-1)}
 var UNIVERSE = Interval{math.Inf(-1), math.Inf(1)}

@@ -13,6 +13,11 @@ type Material interface {
 	Scatter(rayIn, rayOut *ray.Ray, record *HitRecord, attenuation *vec.Vec3) bool
 }
 
+type EmissiveMaterial interface {
+	Material
+	Emitted(u, v float64, point *vec.Vec3) *vec.Vec3
+}
+
 // Lambertian (matte) material.
 type Lambertian struct {
 	tex Texture
@@ -99,4 +104,24 @@ func (d Dielectric) reflectance(cosine float64) float64 {
 	r0 := (1.0 - d.RefractionIndex) / (1.0 + d.RefractionIndex)
 	r0 *= r0
 	return r0 + (1-r0)*math.Pow(1-cosine, 5)
+}
+
+type DiffuseLight struct {
+	tex Texture
+}
+
+func NewDiffuseLight(color *vec.Vec3) *DiffuseLight {
+	return &DiffuseLight{tex: NewSolidColor(color)}
+}
+func newDiffuseLightTextured(tex Texture) *DiffuseLight {
+	return &DiffuseLight{tex: tex}
+}
+
+func (dl DiffuseLight) Scatter(rayIn, rayOut *ray.Ray, record *HitRecord, attenuation *vec.Vec3) bool {
+	*attenuation = *vec.New(1, 1, 1)
+	return false
+}
+
+func (dl DiffuseLight) Emitted(u, v float64, point *vec.Vec3) *vec.Vec3 {
+	return dl.tex.Value(u, v, point)
 }

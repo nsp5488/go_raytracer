@@ -118,7 +118,7 @@ func (nt *NoiseTexture) Value(u, v float64, point *vec.Vec3) *vec.Vec3 {
 	case MARBLE:
 		return vec.New(.5, .5, .5).Scale(1 + math.Sin(nt.scale*point.Z()+10*nt.noise.Turbulence(point, 7)))
 	case TURBULENT:
-		return vec.New(1, 1, 1).Scale(1 + 0.5*nt.noise.Turbulence(point, 7))
+		return vec.New(1, 1, 1).Scale(nt.noise.Turbulence(point, 7))
 	}
 
 	// should be impossible, but we'll default to perlin
