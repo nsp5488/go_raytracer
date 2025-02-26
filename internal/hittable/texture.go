@@ -13,43 +13,43 @@ type Texture interface {
 	Value(u, v float64, point *vec.Vec3) *vec.Vec3
 }
 
-type SolidColor struct {
+type solidColor struct {
 	Albedo *vec.Vec3
 }
 
-func NewSolidColor(albedo *vec.Vec3) *SolidColor {
-	return &SolidColor{Albedo: albedo}
+func NewSolidColor(albedo *vec.Vec3) *solidColor {
+	return &solidColor{Albedo: albedo}
 }
-func NewSolidColorRGB(r, g, b float64) *SolidColor {
-	return &SolidColor{Albedo: vec.New(r, g, b)}
+func NewSolidColorRGB(r, g, b float64) *solidColor {
+	return &solidColor{Albedo: vec.New(r, g, b)}
 }
 
-func (sc *SolidColor) Value(u, v float64, point *vec.Vec3) *vec.Vec3 {
+func (sc *solidColor) Value(u, v float64, point *vec.Vec3) *vec.Vec3 {
 	return sc.Albedo
 }
 
-type Checkerboard struct {
+type checkerboard struct {
 	inv_scale float64
 	even      Texture
 	odd       Texture
 }
 
-func NewCheckerboard(scale float64, even, odd Texture) *Checkerboard {
-	return &Checkerboard{
+func NewCheckerboard(scale float64, even, odd Texture) *checkerboard {
+	return &checkerboard{
 		inv_scale: 1 / scale,
 		even:      even,
 		odd:       odd,
 	}
 }
-func NewCheckerboardColors(scale float64, even, odd *vec.Vec3) *Checkerboard {
-	return &Checkerboard{
+func NewCheckerboardColors(scale float64, even, odd *vec.Vec3) *checkerboard {
+	return &checkerboard{
 		inv_scale: 1 / scale,
 		even:      NewSolidColor(even),
 		odd:       NewSolidColor(odd),
 	}
 }
 
-func (cb *Checkerboard) Value(u, v float64, point *vec.Vec3) *vec.Vec3 {
+func (cb *checkerboard) Value(u, v float64, point *vec.Vec3) *vec.Vec3 {
 	x := int(math.Floor(cb.inv_scale * point.X()))
 	y := int(math.Floor(cb.inv_scale * point.Y()))
 	z := int(math.Floor(cb.inv_scale * point.Z()))
@@ -61,15 +61,15 @@ func (cb *Checkerboard) Value(u, v float64, point *vec.Vec3) *vec.Vec3 {
 	}
 }
 
-type ImageTexture struct {
-	img ImageLoader.RTImage
+type imageTexture struct {
+	img *ImageLoader.RTImage
 }
 
-func NewImageTexture(filename string) *ImageTexture {
-	return &ImageTexture{img: *ImageLoader.LoadImage(filename)}
+func NewImageTexture(filename string) *imageTexture {
+	return &imageTexture{img: ImageLoader.LoadImage(filename)}
 }
 
-func (it *ImageTexture) Value(u, v float64, point *vec.Vec3) *vec.Vec3 {
+func (it *imageTexture) Value(u, v float64, point *vec.Vec3) *vec.Vec3 {
 	if it.img.Height <= 0 {
 		return vec.New(0, 1, 1)
 	}
@@ -96,22 +96,22 @@ const (
 	TURBULENT
 )
 
-type NoiseTexture struct {
-	noise   *Perlin
+type noiseTexture struct {
+	noise   *perlin
 	scale   float64
 	variant perlinType
 }
 
-func NewNoiseTexture(scale float64) *NoiseTexture {
-	return &NoiseTexture{noise: NewPerlin(), scale: scale, variant: PERLIN}
+func NewNoiseTexture(scale float64) *noiseTexture {
+	return &noiseTexture{noise: NewPerlin(), scale: scale, variant: PERLIN}
 }
 
-func NewNoiseTextureWithType(scale float64, variant perlinType) *NoiseTexture {
-	return &NoiseTexture{noise: NewPerlin(), scale: scale, variant: variant}
+func NewNoiseTextureWithType(scale float64, variant perlinType) *noiseTexture {
+	return &noiseTexture{noise: NewPerlin(), scale: scale, variant: variant}
 
 }
 
-func (nt *NoiseTexture) Value(u, v float64, point *vec.Vec3) *vec.Vec3 {
+func (nt *noiseTexture) Value(u, v float64, point *vec.Vec3) *vec.Vec3 {
 	switch nt.variant {
 	case PERLIN:
 		return vec.New(1, 1, 1).Scale(.5 * (1.0 + nt.noise.Noise(point.Scale(nt.scale))))

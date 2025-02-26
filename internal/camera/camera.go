@@ -43,6 +43,8 @@ type Camera struct {
 	pixelDeltaU       *vec.Vec3
 	pixelDeltaV       *vec.Vec3
 	pixelSamplesScale float64
+	sppSqrt           int
+	recipSppSqrt      float64
 	defocusDiskU      *vec.Vec3
 	defocusDiskV      *vec.Vec3
 
@@ -84,15 +86,18 @@ type rowData struct {
 }
 
 // calculates the pixel data for one row of the image utilizing a thread pool.
-func (c *Camera) renderRow(world *hittable.HittableList, buf *rowData) {
+func (c *Camera) renderRow(world hittable.Hittable, buf *rowData) {
 	defer c.waitGroup.Done()
 	c.groupSize <- struct{}{}
 	for j := range c.Width {
 		pixelColor := vec.Empty()
-		for range c.SamplesPerPixel {
-			r := c.getRay(j, buf.index)
-			pixelColor.AddInplace(c.rayColor(r, world, c.MaxDepth))
 
+		// Perform stratification
+		for s_i := 0; s_i < c.sppSqrt; s_i++ {
+			for s_j := 0; s_j < c.sppSqrt; s_j++ {
+				r := c.getRay(j, buf.index, s_j, s_i)
+				pixelColor.AddInplace(c.rayColor(r, world, c.MaxDepth))
+			}
 		}
 
 		pixelColor.Scale(c.pixelSamplesScale).PrintColor(buf.data)
@@ -104,7 +109,7 @@ func (c *Camera) renderRow(world *hittable.HittableList, buf *rowData) {
 }
 
 // A threaded variant of the renderer.
-func (c *Camera) threadedRenderer(world *hittable.HittableList) {
+func (c *Camera) threadedRenderer(world hittable.Hittable) {
 	buffers := make([]rowData, c.imageHeight, c.imageHeight)
 	for i := range c.imageHeight {
 		buffers[i].data = &bytes.Buffer{}
@@ -127,14 +132,17 @@ func (c *Camera) threadedRenderer(world *hittable.HittableList) {
 }
 
 // A synchronous variant of the renderer.
-func (c *Camera) syncRenderer(world *hittable.HittableList) {
+func (c *Camera) syncRenderer(world hittable.Hittable) {
 	for i := range c.imageHeight {
 		for j := range c.Width {
 			pixelColor := vec.Empty()
-			for range c.SamplesPerPixel {
-				r := c.getRay(j, i)
-				pixelColor.AddInplace(c.rayColor(r, world, c.MaxDepth))
 
+			// Perform stratification
+			for s_i := 0; s_i < c.sppSqrt; s_i++ {
+				for s_j := 0; s_j < c.sppSqrt; s_j++ {
+					r := c.getRay(j, i, s_j, s_i)
+					pixelColor.AddInplace(c.rayColor(r, world, c.MaxDepth))
+				}
 			}
 
 			pixelColor.Scale(c.pixelSamplesScale).PrintColor(c.Out)
@@ -145,7 +153,7 @@ func (c *Camera) syncRenderer(world *hittable.HittableList) {
 }
 
 // Render the provided scene using the camera's settings.
-func (c *Camera) Render(world *hittable.HittableList) {
+func (c *Camera) Render(world hittable.Hittable) {
 	c.initialize()
 
 	io.WriteString(c.Out, fmt.Sprintf("P3\n%d %d\n255\n", c.Width, c.imageHeight))
@@ -196,7 +204,10 @@ func (c *Camera) initialize() {
 
 	// calculate image height given aspect ratio, clamped to >=1
 	c.imageHeight = max(1, int(float64(c.Width)/c.AspectRatio))
-	c.pixelSamplesScale = 1.0 / float64(c.SamplesPerPixel)
+
+	c.sppSqrt = int(math.Sqrt(float64(c.SamplesPerPixel)))
+	c.pixelSamplesScale = 1.0 / float64(c.sppSqrt*c.sppSqrt)
+	c.recipSppSqrt = 1.0 / float64(c.sppSqrt)
 
 	// define camera information
 	c.center = c.lookFrom
@@ -239,8 +250,8 @@ func (c *Camera) initialize() {
 }
 
 // getRay returns a ray from the camera with some amount of defocus and sampling to offset. This creates a smoother image and simulates depth of field.
-func (c *Camera) getRay(i, j int) *ray.Ray {
-	offset := c.sampleSquare()
+func (c *Camera) getRay(i, j, s_i, s_j int) *ray.Ray {
+	offset := c.sampleSquareStratified(s_i, s_j)
 	pixelSample := c.pixel00Loc.
 		Add(c.pixelDeltaU.Scale(float64(i) + offset.X())).
 		Add(c.pixelDeltaV.Scale(float64(j) + offset.Y()))
@@ -260,6 +271,13 @@ func (c *Camera) sampleSquare() *vec.Vec3 {
 	return vec.New(rand.Float64()-0.5, rand.Float64()-0.5, 0)
 }
 
+func (c *Camera) sampleSquareStratified(s_i, s_j int) *vec.Vec3 {
+	px := ((float64(s_i) + rand.Float64()) * c.recipSppSqrt) - .5
+	py := ((float64(s_j) + rand.Float64()) * c.recipSppSqrt) - .5
+
+	return vec.New(px, py, 0)
+}
+
 // Returns a randomly offset center point for the ray to simulate depth of field
 func (c *Camera) defocusDiskSample() *vec.Vec3 {
 	p := vec.RandomUnitDisk()
@@ -269,7 +287,7 @@ func (c *Camera) defocusDiskSample() *vec.Vec3 {
 }
 
 // Calculates the color of a ray after it has been traced through the scene.
-func (c *Camera) rayColor(r *ray.Ray, world *hittable.HittableList, depth int) *vec.Vec3 {
+func (c *Camera) rayColor(r *ray.Ray, world hittable.Hittable, depth int) *vec.Vec3 {
 	if depth < 0 {
 		return vec.Empty()
 	}
@@ -289,7 +307,11 @@ func (c *Camera) rayColor(r *ray.Ray, world *hittable.HittableList, depth int) *
 	if !rec.Material.Scatter(r, scattered, &rec, attenuation) {
 		return emitColor
 	}
+	scatterPdf := rec.Material.ScatteringPdf(r, scattered, &rec)
+	pdfValue := scatterPdf
 	scatterColor = attenuation.Multiply(c.rayColor(scattered, world, depth-1))
+	scatterColor.ScaleInplace(scatterPdf)
+	scatterColor.ScaleInplace(1 / pdfValue)
 
 	return emitColor.Add(scatterColor)
 }

@@ -60,37 +60,36 @@ type Hittable interface {
 }
 
 // A container struct for a list of hittable objects. Effectively a scene.
-type HittableList struct {
+type hittableList struct {
 	objects []Hittable
 
 	bbox *aabb.AABB
 }
 
-func NewHittableList(objects []Hittable) *HittableList {
-	hl := &HittableList{}
-	hl.Init(len(objects))
-	copy(hl.objects, objects)
+func NewHittableList(startSize int) *hittableList {
+	hl := &hittableList{}
+	hl.init(startSize)
 	return hl
 }
 
-func (hl *HittableList) Init(startSize int) {
+func (hl *hittableList) init(startSize int) {
 	hl.objects = make([]Hittable, 0, startSize)
 	hl.bbox = aabb.EmptyBBox()
 }
-func (hl *HittableList) Clear() {
+func (hl *hittableList) Clear() {
 	hl.objects = make([]Hittable, 10)
 }
 
-func (hl *HittableList) Add(obj Hittable) {
+func (hl *hittableList) Add(obj Hittable) {
 	hl.objects = append(hl.objects, obj)
 	hl.bbox = aabb.FromBBoxes(hl.bbox, obj.BBox())
 }
-func (hl *HittableList) BBox() *aabb.AABB {
+func (hl *hittableList) BBox() *aabb.AABB {
 	return hl.bbox
 }
 
 // Checks if a ray hits any of the objects in a scene
-func (hl *HittableList) Hit(r *ray.Ray, rayT interval.Interval, record *HitRecord) bool {
+func (hl *hittableList) Hit(r *ray.Ray, rayT interval.Interval, record *HitRecord) bool {
 	hitRecord := &HitRecord{}
 	// tmp := &HitRecord{}
 	hitAny := false

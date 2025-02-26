@@ -29,16 +29,17 @@ func testWorld(c *camera.Camera) {
 	// metal
 	right := hittable.NewMetal(vec.New(0.8, 0.6, 0.2), 1.0)
 	// Define the "world"
-	world := &hittable.HittableList{}
-	world.Init(5)
-	world.Add(hittable.NewSphere(*vec.New(0, -100.5, -1), 100, ground))
-	world.Add(hittable.NewSphere(*vec.New(0, 0, -1.2), 0.5, center))
-	world.Add(hittable.NewSphere(*vec.New(-1, 0, -1), 0.5, left))
-	world.Add(hittable.NewSphere(*vec.New(-1, 0, -1), 0.4, bubble))
-	world.Add(hittable.NewSphere(*vec.New(1, 0, -1), 0.5, right))
+	world := hittable.NewHittableList(5)
+	world.Add(hittable.NewSphere(vec.New(0, -100.5, -1), 100, ground))
+	world.Add(hittable.NewSphere(vec.New(0, 0, -1.2), 0.5, center))
+	world.Add(hittable.NewSphere(vec.New(-1, 0, -1), 0.5, left))
+	world.Add(hittable.NewSphere(vec.New(-1, 0, -1), 0.4, bubble))
+	world.Add(hittable.NewSphere(vec.New(1, 0, -1), 0.5, right))
 	c.Background = vec.New(0.70, 0.80, 1.00)
-
-	c.Render(hittable.NewHittableList([]hittable.Hittable{hittable.BuildBVH(world)}))
+	b := hittable.BuildBVH(world)
+	w := hittable.NewHittableList(1)
+	w.Add(b)
+	c.Render(w)
 }
 
 // Creates the world from the cover of Ray Tracing in One Weekend.
@@ -55,12 +56,11 @@ func coverWorld(c *camera.Camera) {
 	c.FocusDistance = 10.0
 	c.Background = vec.New(0.70, 0.80, 1.00)
 
-	world := &hittable.HittableList{}
-	world.Init(4 + 22*21)
-	glass := hittable.Dielectric{RefractionIndex: 1.5}
+	world := hittable.NewHittableList(4 + 22*21)
+	glass := hittable.NewDielectric(1.5)
 	checker := hittable.NewCheckerboardColors(0.32, vec.New(.2, .3, .1), vec.New(.9, .9, .9))
 	// ground := hittable.Lambertian{Albedo: *vec.New(0.5, 0.5, 0.5)}
-	world.Add(hittable.NewSphere(*vec.New(0, -1000, 0), 1000, hittable.NewTexturedLambertian(checker)))
+	world.Add(hittable.NewSphere(vec.New(0, -1000, 0), 1000, hittable.NewTexturedLambertian(checker)))
 	for a := -11; a < 11; a++ {
 		for b := -11; b < 11; b++ {
 			mat := rand.Float64()
@@ -72,45 +72,39 @@ func coverWorld(c *camera.Camera) {
 				if mat < 0.8 {
 					albedo := vec.Random().Multiply(vec.Random())
 					material = hittable.NewLambertian(albedo)
-					world.Add(hittable.NewMotionSphere(*center, *center.Add(vec.New(0, util.RangeRange(0, 0.5), 0)), 0.2, material))
+					world.Add(hittable.NewMotionSphere(center, center.Add(vec.New(0, util.RangeRange(0, 0.5), 0)), 0.2, material))
 
 				} else if mat < 0.95 {
 					albedo := vec.RangeRandom(0.5, 1.0)
 					fuzz := rand.Float64()
-					material = hittable.Metal{Albedo: *albedo, Fuzz: fuzz}
-					world.Add(hittable.NewSphere(*center, 0.2, material))
+					material = hittable.NewMetal(albedo, fuzz)
+					world.Add(hittable.NewSphere(center, 0.2, material))
 
 				} else {
-					world.Add(hittable.NewSphere(*center, 0.2, &glass))
+					world.Add(hittable.NewSphere(center, 0.2, glass))
 				}
 			}
 		}
 	}
-	world.Add(hittable.NewSphere(*vec.New(0, 1, 0), 1.0, glass))
+	world.Add(hittable.NewSphere(vec.New(0, 1, 0), 1.0, glass))
 
 	mat2 := hittable.NewLambertian(vec.New(0.4, 0.2, 0.1))
-	world.Add(hittable.NewSphere(*vec.New(-4, 1, 0), 1.0, mat2))
-
-	mat3 := hittable.Metal{Albedo: *vec.New(.7, .6, .5), Fuzz: 0.0}
-	world.Add(hittable.NewSphere(*vec.New(4, 1, 0), 1.0, mat3))
+	world.Add(hittable.NewSphere(vec.New(-4, 1, 0), 1.0, mat2))
+	mat3 := hittable.NewMetal(vec.New(.7, .6, .5), 0)
+	world.Add(hittable.NewSphere(vec.New(4, 1, 0), 1.0, mat3))
 
 	b := hittable.BuildBVH(world)
-	w := &hittable.HittableList{}
-	w.Init(1)
-	w.Add(b)
-	c.Render(w)
+	c.Render(b)
 }
 
 func checkeredSpheres(c *camera.Camera) {
-	world := &hittable.HittableList{}
-	world.Init(2)
+	world := hittable.NewHittableList(2)
 	checker := hittable.NewCheckerboardColors(0.32, vec.New(.2, .3, .1), vec.New(.9, .9, .9))
 
-	world.Add(hittable.NewSphere(*vec.New(0, -10, 0), 10, hittable.NewTexturedLambertian(checker)))
-	world.Add(hittable.NewSphere(*vec.New(0, 10, 0), 10, hittable.NewTexturedLambertian(checker)))
+	world.Add(hittable.NewSphere(vec.New(0, -10, 0), 10, hittable.NewTexturedLambertian(checker)))
+	world.Add(hittable.NewSphere(vec.New(0, 10, 0), 10, hittable.NewTexturedLambertian(checker)))
 	b := hittable.BuildBVH(world)
-	w := &hittable.HittableList{}
-	w.Init(1)
+	w := hittable.NewHittableList(1)
 	w.Add(b)
 	c.AspectRatio = float64(16) / float64(9)
 	c.Width = 400
@@ -136,20 +130,18 @@ func earth(c *camera.Camera) {
 	c.Background = vec.New(0.70, 0.80, 1.00)
 
 	c.DefocusAngle = 0
-	l := &hittable.HittableList{}
-	l.Init(1)
+	l := hittable.NewHittableList(1)
 	earth_tex := hittable.NewImageTexture("earthmap.jpg")
 	earth_surf := hittable.NewTexturedLambertian(earth_tex)
-	l.Add(hittable.NewSphere(*vec.Empty(), 2, earth_surf))
+	l.Add(hittable.NewSphere(vec.Empty(), 2, earth_surf))
 	c.Render(l)
 }
 
 func perlin(cam *camera.Camera) {
-	world := &hittable.HittableList{}
-	world.Init(2)
+	world := hittable.NewHittableList(2)
 	p := hittable.NewNoiseTextureWithType(4, hittable.MARBLE)
-	s1 := hittable.NewSphere(*vec.New(0, -1000, 0), 1000, hittable.NewTexturedLambertian(p))
-	s2 := hittable.NewSphere(*vec.New(0, 2, 0), 2, hittable.NewTexturedLambertian(p))
+	s1 := hittable.NewSphere(vec.New(0, -1000, 0), 1000, hittable.NewTexturedLambertian(p))
+	s2 := hittable.NewSphere(vec.New(0, 2, 0), 2, hittable.NewTexturedLambertian(p))
 	world.Add(s1)
 	world.Add(s2)
 	cam.AspectRatio = 16.0 / 9.0
@@ -167,8 +159,7 @@ func perlin(cam *camera.Camera) {
 }
 
 func quads(cam *camera.Camera) {
-	world := &hittable.HittableList{}
-	world.Init(5)
+	world := hittable.NewHittableList(5)
 
 	leftRed := hittable.NewLambertian(vec.New(1, 0.2, 0.2))
 	backGreen := hittable.NewTexturedLambertian(hittable.NewNoiseTextureWithType(5, hittable.MARBLE))
@@ -182,9 +173,6 @@ func quads(cam *camera.Camera) {
 	world.Add(hittable.NewQuad(vec.New(-2, 3, 1), vec.New(4, 0, 0), vec.New(0, 0, 4), upperOrange))
 	world.Add(hittable.NewQuad(vec.New(-2, -3, 5), vec.New(4, 0, 0), vec.New(0, 0, -4), lowerTeal))
 	bvh := hittable.BuildBVH(world)
-	w := &hittable.HittableList{}
-	w.Init(1)
-	w.Add(bvh)
 
 	cam.AspectRatio = 1.0
 	cam.Width = 400
@@ -195,19 +183,18 @@ func quads(cam *camera.Camera) {
 	cam.VerticalFOV = 80
 	cam.PositionCamera(vec.New(0, 0, 9), vec.New(0, 0, 0), vec.New(0, 1, 0))
 	cam.DefocusAngle = 0
-	cam.Render(w)
+	cam.Render(bvh)
 }
 
 func simpleLight(cam *camera.Camera) {
-	world := &hittable.HittableList{}
-	world.Init(4)
+	world := hittable.NewHittableList(4)
 	p := hittable.NewNoiseTextureWithType(4, hittable.MARBLE)
 	l := hittable.NewDiffuseLight(vec.New(4, 4, 4))
 
-	s1 := hittable.NewSphere(*vec.New(0, -1000, 0), 1000, hittable.NewTexturedLambertian(p))
-	s2 := hittable.NewSphere(*vec.New(0, 2, 0), 2, hittable.NewTexturedLambertian(p))
+	s1 := hittable.NewSphere(vec.New(0, -1000, 0), 1000, hittable.NewTexturedLambertian(p))
+	s2 := hittable.NewSphere(vec.New(0, 2, 0), 2, hittable.NewTexturedLambertian(p))
 	q := hittable.NewQuad(vec.New(3, 1, -2), vec.New(2, 0, 0), vec.New(0, 2, 0), l)
-	s := hittable.NewSphere(*vec.New(0, 7, 0), 2, l)
+	s := hittable.NewSphere(vec.New(0, 7, 0), 2, l)
 	world.Add(q)
 	world.Add(s1)
 	world.Add(s2)
@@ -228,8 +215,7 @@ func simpleLight(cam *camera.Camera) {
 }
 
 func cornellBox(cam *camera.Camera) {
-	world := &hittable.HittableList{}
-	world.Init(8)
+	world := hittable.NewHittableList(8)
 
 	red := hittable.NewLambertian(vec.New(.65, .05, .05))
 	white := hittable.NewLambertian(vec.New(.73, .73, .73))
@@ -257,7 +243,7 @@ func cornellBox(cam *camera.Camera) {
 	world.Add(b2)
 	cam.AspectRatio = 1.0
 	cam.Width = 600
-	cam.SamplesPerPixel = 200
+	cam.SamplesPerPixel = 1000
 	cam.MaxDepth = 50
 
 	cam.Background = vec.Empty()
@@ -265,14 +251,10 @@ func cornellBox(cam *camera.Camera) {
 	cam.PositionCamera(vec.New(278, 278, -800), vec.New(278, 278, 0), vec.New(0, 1, 0))
 	cam.DefocusAngle = 0
 
-	w := &hittable.HittableList{}
-	w.Init(1)
-	w.Add(hittable.BuildBVH(world))
-	cam.Render(world)
+	cam.Render(hittable.BuildBVH(world))
 }
 func cornellSmoke(cam *camera.Camera) {
-	world := &hittable.HittableList{}
-	world.Init(10)
+	world := hittable.NewHittableList(10)
 
 	red := hittable.NewLambertian(vec.New(.65, .05, .05))
 	white := hittable.NewLambertian(vec.New(.73, .73, .73))
@@ -310,14 +292,11 @@ func cornellSmoke(cam *camera.Camera) {
 	cam.PositionCamera(vec.New(278, 278, -800), vec.New(278, 278, 0), vec.New(0, 1, 0))
 	cam.DefocusAngle = 0
 
-	w := &hittable.HittableList{}
-	w.Init(1)
-	w.Add(hittable.BuildBVH(world))
-	cam.Render(world)
+	bvh := hittable.BuildBVH(world)
+	cam.Render(bvh)
 }
 func book2Scene(cam *camera.Camera) {
-	boxes1 := &hittable.HittableList{}
-	boxes1.Init(20 * 20)
+	boxes1 := hittable.NewHittableList(20 * 20)
 	groundColor := hittable.NewLambertian(vec.New(.48, .83, .53))
 
 	// floor
@@ -334,8 +313,7 @@ func book2Scene(cam *camera.Camera) {
 			boxes1.Add(hittable.NewBox(vec.New(x0, y0, z0), vec.New(x1, y1, z1), groundColor))
 		}
 	}
-	world := &hittable.HittableList{}
-	world.Init(12)
+	world := hittable.NewHittableList(12)
 	world.Add(hittable.BuildBVH(boxes1))
 
 	// light
@@ -346,38 +324,37 @@ func book2Scene(cam *camera.Camera) {
 	c1 := vec.New(400, 400, 200)
 	c2 := c1.Add(vec.New(30, 0, 0))
 	sphereMat := hittable.NewLambertian(vec.New(.7, .3, .1))
-	world.Add(hittable.NewMotionSphere(*c1, *c2, 50, sphereMat))
+	world.Add(hittable.NewMotionSphere(c1, c2, 50, sphereMat))
 
 	// glass orb
-	world.Add(hittable.NewSphere(*vec.New(260, 150, 45), 50, hittable.NewDielectric(1.5)))
+	world.Add(hittable.NewSphere(vec.New(260, 150, 45), 50, hittable.NewDielectric(1.5)))
 
 	// metal orb
-	world.Add(hittable.NewSphere(*vec.New(0, 150, 145), 50, hittable.NewMetal(vec.New(0.8, 0.8, 0.9), 1.0)))
+	world.Add(hittable.NewSphere(vec.New(0, 150, 145), 50, hittable.NewMetal(vec.New(0.8, 0.8, 0.9), 1.0)))
 
 	// water orb
-	boundary := hittable.NewSphere(*vec.New(360, 150, 145), 70, hittable.NewDielectric(1.5))
+	boundary := hittable.NewSphere(vec.New(360, 150, 145), 70, hittable.NewDielectric(1.5))
 	world.Add(boundary)
 	world.Add(hittable.ConstantMedium(boundary, .2, vec.New(0.2, 0.4, 0.9)))
 
 	// fog
-	b2 := hittable.NewSphere(*vec.New(0, 0, 0), 5000, hittable.NewDielectric(1.5))
+	b2 := hittable.NewSphere(vec.New(0, 0, 0), 5000, hittable.NewDielectric(1.5))
 	world.Add(hittable.ConstantMedium(b2, .0001, vec.New(1, 1, 1)))
 
 	// earth
 	eMat := hittable.NewTexturedLambertian(hittable.NewImageTexture("earthmap.jpg"))
-	world.Add(hittable.NewSphere(*vec.New(400, 200, 400), 100, eMat))
+	world.Add(hittable.NewSphere(vec.New(400, 200, 400), 100, eMat))
 
 	// perlin
 	p := hittable.NewTexturedLambertian(hittable.NewNoiseTextureWithType(.2, hittable.MARBLE))
-	world.Add(hittable.NewSphere(*vec.New(220, 280, 300), 80, p))
+	world.Add(hittable.NewSphere(vec.New(220, 280, 300), 80, p))
 
 	// weird spheres
-	boxes2 := &hittable.HittableList{}
-	boxes2.Init(1000)
+	boxes2 := hittable.NewHittableList(1000)
 	white := hittable.NewLambertian(vec.New(.73, .73, .73))
 	ns := 1000
 	for i := 0; i < ns; i++ {
-		boxes2.Add(hittable.NewSphere(*vec.RangeRandom(0, 165), 10, white))
+		boxes2.Add(hittable.NewSphere(vec.RangeRandom(0, 165), 10, white))
 	}
 	world.Add(
 		hittable.Translate(
@@ -418,10 +395,10 @@ func main() {
 	}
 
 	file, err := os.Create(*outFile)
-	defer file.Close()
 	if err != nil {
 		log.Fatal("Error creating output file\n")
 	}
+	defer file.Close()
 
 	outBuf := bytes.Buffer{}
 
@@ -435,8 +412,8 @@ func main() {
 	// perlin(&c)
 	// quads(&c)
 	// simpleLight(&c)
-	// cornellBox(&c)
+	cornellBox(&c)
 	// cornellSmoke(&c)
-	book2Scene(&c)
+	// book2Scene(&c)
 	file.Write(outBuf.Bytes())
 }

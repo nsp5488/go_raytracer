@@ -10,8 +10,8 @@ import (
 )
 
 // Represents a sphere in 3D space
-type Sphere struct {
-	Center ray.Ray // Using a ray to represent motion
+type sphere struct {
+	Center *ray.Ray // Using a ray to represent motion
 
 	Radius   float64
 	Material Material
@@ -19,22 +19,22 @@ type Sphere struct {
 }
 
 // Creates a new sphere
-func NewSphere(center vec.Vec3, radius float64, material Material) *Sphere {
+func NewSphere(center *vec.Vec3, radius float64, material Material) *sphere {
 	rvec := vec.New(radius, radius, radius)
 	bbox := aabb.FromPoints(center.Sub(rvec), center.Add(rvec))
-	return &Sphere{Center: *ray.New(&center, vec.Empty()), Radius: radius, Material: material, bbox: bbox}
+	return &sphere{Center: ray.New(center, vec.Empty()), Radius: radius, Material: material, bbox: bbox}
 }
 
 // Creates a new sphere with motion blur
-func NewMotionSphere(center1, center2 vec.Vec3, radius float64, material Material) *Sphere {
+func NewMotionSphere(center1, center2 *vec.Vec3, radius float64, material Material) *sphere {
 	rvec := vec.New(radius, radius, radius)
-	center := *ray.New(&center1, center2.Sub(&center1))
+	center := *ray.New(center1, center2.Sub(center1))
 	bbox1 := aabb.FromPoints(center.At(0).Sub(rvec), center.At(0).Add(rvec))
 	bbox2 := aabb.FromPoints(center.At(1).Sub(rvec), center.At(1).Add(rvec))
 
-	return &Sphere{Center: center, Radius: radius, Material: material, bbox: aabb.FromBBoxes(bbox1, bbox2)}
+	return &sphere{Center: &center, Radius: radius, Material: material, bbox: aabb.FromBBoxes(bbox1, bbox2)}
 }
-func (s *Sphere) BBox() *aabb.AABB {
+func (s *sphere) BBox() *aabb.AABB {
 	return s.bbox
 }
 
@@ -49,7 +49,7 @@ func calculateSphereUV(point *vec.Vec3, u, v *float64) {
 }
 
 // Hit checks if a ray intersects with the sphere.
-func (s *Sphere) Hit(r *ray.Ray, rayT interval.Interval, record *HitRecord) bool {
+func (s *sphere) Hit(r *ray.Ray, rayT interval.Interval, record *HitRecord) bool {
 	curCenter := s.Center.At(r.Time())
 	oc := curCenter.Sub(r.Origin())
 
@@ -83,7 +83,7 @@ func (s *Sphere) Hit(r *ray.Ray, rayT interval.Interval, record *HitRecord) bool
 	return true
 }
 
-type Quad struct {
+type quad struct {
 	Q      *vec.Vec3 // One corner of the plane
 	u      *vec.Vec3 // u,v are vectors that point from Q to two other corners
 	v      *vec.Vec3
@@ -95,8 +95,8 @@ type Quad struct {
 	material Material
 }
 
-func NewQuad(Q, u, v *vec.Vec3, material Material) *Quad {
-	q := &Quad{Q: Q, u: u, v: v, material: material}
+func NewQuad(Q, u, v *vec.Vec3, material Material) *quad {
+	q := &quad{Q: Q, u: u, v: v, material: material}
 
 	n := u.Cross(v)
 
@@ -108,16 +108,16 @@ func NewQuad(Q, u, v *vec.Vec3, material Material) *Quad {
 	return q
 }
 
-func (q *Quad) setBBox() {
+func (q *quad) setBBox() {
 	diag1 := aabb.FromPoints(q.Q, q.Q.Add(q.u).Add(q.v))
 	diag2 := aabb.FromPoints(q.Q.Add(q.u), q.Q.Add(q.v))
 	q.bbox = aabb.FromBBoxes(diag1, diag2)
 }
 
-func (q *Quad) BBox() *aabb.AABB {
+func (q *quad) BBox() *aabb.AABB {
 	return q.bbox
 }
-func (q *Quad) Hit(r *ray.Ray, rayT interval.Interval, record *HitRecord) bool {
+func (q *quad) Hit(r *ray.Ray, rayT interval.Interval, record *HitRecord) bool {
 	denom := q.normal.Dot(r.Direction())
 
 	// Low values in denominator -> ray is parallel to the plane
@@ -159,8 +159,7 @@ func isInterior(alpha, beta float64, record *HitRecord) bool {
 }
 
 func NewBox(a, b *vec.Vec3, mat Material) Hittable {
-	sides := &HittableList{}
-	sides.Init(6)
+	sides := NewHittableList(6)
 
 	minVec := vec.New(
 		min(a.X(), b.X()),

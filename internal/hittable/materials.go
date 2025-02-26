@@ -11,6 +11,7 @@ import (
 // Material interface defines the behavior of a material when a ray hits it.
 type Material interface {
 	Scatter(rayIn, rayOut *ray.Ray, record *HitRecord, attenuation *vec.Vec3) bool
+	ScatteringPdf(rayIn, rayOut *ray.Ray, record *HitRecord) float64
 }
 
 type EmissiveMaterial interface {
@@ -19,23 +20,23 @@ type EmissiveMaterial interface {
 }
 
 // Lambertian (matte) material.
-type Lambertian struct {
+type lambertian struct {
 	tex Texture
 }
 
 // Creates a new matte material
-func NewLambertian(albedo *vec.Vec3) *Lambertian {
-	return &Lambertian{tex: NewSolidColor(albedo)}
+func NewLambertian(albedo *vec.Vec3) *lambertian {
+	return &lambertian{tex: NewSolidColor(albedo)}
 }
 
 // A lambertian with an externally defined texture
-func NewTexturedLambertian(tex Texture) *Lambertian {
-	return &Lambertian{tex: tex}
+func NewTexturedLambertian(tex Texture) *lambertian {
+	return &lambertian{tex: tex}
 }
 
 // Scatter implements the Lambertian material's scattering behavior.
-func (l Lambertian) Scatter(rayIn, rayOut *ray.Ray, record *HitRecord, attenuation *vec.Vec3) bool {
-	direction := record.Normal().Add(vec.RandomUnitVector())
+func (l *lambertian) Scatter(rayIn, rayOut *ray.Ray, record *HitRecord, attenuation *vec.Vec3) bool {
+	direction := vec.RandomOnHemisphere(record.normal)
 	if direction.NearZero() {
 		direction = record.Normal()
 	}
@@ -43,37 +44,48 @@ func (l Lambertian) Scatter(rayIn, rayOut *ray.Ray, record *HitRecord, attenuati
 	*attenuation = *l.tex.Value(record.u, record.v, record.p)
 	return true
 }
+func (l *lambertian) ScatteringPdf(rayIn, rayOut *ray.Ray, record *HitRecord) float64 {
+	return 1 / (2 * math.Pi)
+	cosTheta := record.Normal().Dot(rayOut.Direction().UnitVector())
+	if cosTheta < 0 {
+		return 0
+	}
+	return cosTheta / math.Pi
+}
 
 // Metal material.
-type Metal struct {
-	Albedo vec.Vec3
+type metal struct {
+	Albedo *vec.Vec3
 	Fuzz   float64
 }
 
-func NewMetal(albedo *vec.Vec3, fuzz float64) *Metal {
-	return &Metal{Albedo: *albedo, Fuzz: fuzz}
+func NewMetal(albedo *vec.Vec3, fuzz float64) *metal {
+	return &metal{Albedo: albedo, Fuzz: fuzz}
 }
 
 // Scatter implements the metal material's scattering behavior.
-func (m Metal) Scatter(rayIn, rayOut *ray.Ray, record *HitRecord, attenuation *vec.Vec3) bool {
+func (m *metal) Scatter(rayIn, rayOut *ray.Ray, record *HitRecord, attenuation *vec.Vec3) bool {
 	reflected := rayIn.Direction().Reflect(record.normal)
 	reflected = reflected.UnitVector().Add(vec.RandomUnitVector().Scale(m.Fuzz))
 	*rayOut = *ray.NewWithTime(record.P(), reflected, rayIn.Time())
-	*attenuation = m.Albedo
+	*attenuation = *m.Albedo
 	return rayOut.Direction().Dot(record.Normal()) > 0
+}
+func (m *metal) ScatteringPdf(rayIn, rayOut *ray.Ray, record *HitRecord) float64 {
+	return 0
 }
 
 // Dielectric material.
-type Dielectric struct {
+type dielectric struct {
 	RefractionIndex float64
 }
 
-func NewDielectric(refractionIndex float64) *Dielectric {
-	return &Dielectric{RefractionIndex: refractionIndex}
+func NewDielectric(refractionIndex float64) *dielectric {
+	return &dielectric{RefractionIndex: refractionIndex}
 }
 
 // Scatter implements the dielectric material's scattering behavior.
-func (d Dielectric) Scatter(rayIn, rayOut *ray.Ray, record *HitRecord, attenuation *vec.Vec3) bool {
+func (d dielectric) Scatter(rayIn, rayOut *ray.Ray, record *HitRecord, attenuation *vec.Vec3) bool {
 	*attenuation = *vec.New(1, 1, 1)
 
 	var ri float64
@@ -98,9 +110,12 @@ func (d Dielectric) Scatter(rayIn, rayOut *ray.Ray, record *HitRecord, attenuati
 	*rayOut = *ray.NewWithTime(record.P(), direction, rayIn.Time())
 	return true
 }
+func (d dielectric) ScatteringPdf(rayIn, rayOut *ray.Ray, record *HitRecord) float64 {
+	return 0
+}
 
 // Helper function to calculate the reflectance of a dielectric material
-func (d Dielectric) reflectance(cosine float64) float64 {
+func (d dielectric) reflectance(cosine float64) float64 {
 	r0 := (1.0 - d.RefractionIndex) / (1.0 + d.RefractionIndex)
 	r0 *= r0
 	return r0 + (1-r0)*math.Pow(1-cosine, 5)
@@ -116,6 +131,9 @@ func NewDiffuseLight(color *vec.Vec3) *diffuseLight {
 func newDiffuseLightTextured(tex Texture) *diffuseLight {
 	return &diffuseLight{tex: tex}
 }
+func (dl diffuseLight) ScatteringPdf(rayIn, rayOut *ray.Ray, record *HitRecord) float64 {
+	return 0
+}
 
 func (dl diffuseLight) Scatter(rayIn, rayOut *ray.Ray, record *HitRecord, attenuation *vec.Vec3) bool {
 	*attenuation = *vec.New(1, 1, 1)
@@ -128,6 +146,10 @@ func (dl diffuseLight) Emitted(u, v float64, point *vec.Vec3) *vec.Vec3 {
 
 type isotropic struct {
 	tex Texture
+}
+
+func (i isotropic) ScatteringPdf(rayIn, rayOut *ray.Ray, record *HitRecord) float64 {
+	return 0
 }
 
 func NewIsotropicTexture(tex Texture) *isotropic {

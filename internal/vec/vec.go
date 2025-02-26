@@ -174,6 +174,16 @@ func RandomOnHemisphere(normal *Vec3) *Vec3 {
 	}
 	return random.Negate()
 }
+func RandomCosineDirection() *Vec3 {
+	r1 := rand.Float64()
+	r2 := rand.Float64()
+
+	phi := 2 * math.Pi * r1
+	x := math.Cos(phi) * math.Sqrt(r2)
+	y := math.Sin(phi) * math.Sqrt(r2)
+	z := math.Sqrt(1 - r2)
+	return New(x, y, z)
+}
 
 // Returns a string representation of the vector
 func (v *Vec3) String() string {

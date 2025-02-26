@@ -10,7 +10,6 @@ import (
 	"github.com/nsp5488/go_raytracer/internal/vec"
 )
 
-
 type translate struct {
 	object Hittable
 	offset *vec.Vec3

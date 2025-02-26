@@ -9,16 +9,20 @@ import (
 
 const pointCount = 256
 
-type Perlin struct {
-	randVec [pointCount]*vec.Vec3
-	permX   [pointCount]int
-	permY   [pointCount]int
-	permZ   [pointCount]int
+type perlin struct {
+	randVec *[pointCount]*vec.Vec3
+	permX   *[pointCount]int
+	permY   *[pointCount]int
+	permZ   *[pointCount]int
 }
 
 // Generates a new Perlin noise texture
-func NewPerlin() *Perlin {
-	p := &Perlin{}
+func NewPerlin() *perlin {
+	p := &perlin{}
+	p.randVec = &[pointCount]*vec.Vec3{}
+	p.permX = &[pointCount]int{}
+	p.permY = &[pointCount]int{}
+	p.permZ = &[pointCount]int{}
 	for i := 0; i < pointCount; i++ {
 		p.randVec[i] = vec.RangeRandom(-1, 1).UnitVector()
 	}
@@ -27,7 +31,7 @@ func NewPerlin() *Perlin {
 }
 
 // Returns the value of this randomized perlin noise at the given point
-func (p *Perlin) Noise(point *vec.Vec3) float64 {
+func (p *perlin) Noise(point *vec.Vec3) float64 {
 	u := point.X() - math.Floor(point.X())
 	v := point.Y() - math.Floor(point.Y())
 	w := point.Z() - math.Floor(point.Z())
@@ -50,7 +54,7 @@ func (p *Perlin) Noise(point *vec.Vec3) float64 {
 }
 
 // Sums repeated calls to Noise to generate a turbulent texture
-func (p *Perlin) Turbulence(point *vec.Vec3, depth int) float64 {
+func (p *perlin) Turbulence(point *vec.Vec3, depth int) float64 {
 	accum := 0.0
 	temp_p := &vec.Vec3{}
 	*temp_p = *point
@@ -65,16 +69,16 @@ func (p *Perlin) Turbulence(point *vec.Vec3, depth int) float64 {
 }
 
 // Generates data then permutes it
-func (p *Perlin) generatePerm() {
+func (p *perlin) generatePerm() {
 	for i := 0; i < pointCount; i++ {
 		p.permX[i] = i
 		p.permY[i] = i
 		p.permZ[i] = i
 	}
 
-	permute(&p.permX)
-	permute(&p.permY)
-	permute(&p.permZ)
+	permute(p.permX)
+	permute(p.permY)
+	permute(p.permZ)
 }
 
 // Helper method for generatePerm, shuffles the values in the provided array randomly
