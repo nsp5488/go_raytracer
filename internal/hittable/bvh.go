@@ -10,6 +10,7 @@ import (
 
 // Bounded Volume Hierarchy
 type BVHNode struct {
+	defaultPdfImpl
 	left  Hittable
 	right Hittable
 

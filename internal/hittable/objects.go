@@ -2,6 +2,7 @@ package hittable
 
 import (
 	"math"
+	"math/rand"
 
 	"github.com/nsp5488/go_raytracer/internal/aabb"
 	"github.com/nsp5488/go_raytracer/internal/interval"
@@ -48,6 +49,36 @@ func calculateSphereUV(point *vec.Vec3, u, v *float64) {
 	*v = theta / math.Pi
 }
 
+func (s *sphere) PdfValue(origin, direction *vec.Vec3) float64 {
+	rec := &HitRecord{}
+	if !s.Hit(ray.New(origin, direction), *interval.New(.0001, math.Inf(1)), rec) {
+		return 0
+	}
+	distSquared := s.Center.At(0).Sub(origin).LengthSquared()
+	cosThetaMax := math.Sqrt(1 - s.Radius*s.Radius/distSquared)
+	solidAngle := 2 * math.Pi * (1 - cosThetaMax)
+
+	return 1 / solidAngle
+}
+func (s *sphere) Random(origin *vec.Vec3) *vec.Vec3 {
+	direction := s.Center.At(0).Sub(origin)
+	distSquared := direction.LengthSquared()
+	onb := NewONB(direction)
+
+	return onb.Transform(randomToSphere(s.Radius, distSquared))
+}
+func randomToSphere(radius, distSquared float64) *vec.Vec3 {
+	r1 := rand.Float64()
+	r2 := rand.Float64()
+	z := 1 + r2*(math.Sqrt(1-radius*radius/distSquared)-1)
+	phi := 2 * math.Pi * r1
+
+	t := math.Sqrt(1 - z*z)
+	x := math.Cos(phi) * t
+	y := math.Sin(phi) * t
+	return vec.New(x, y, z)
+}
+
 // Hit checks if a ray intersects with the sphere.
 func (s *sphere) Hit(r *ray.Ray, rayT interval.Interval, record *HitRecord) bool {
 	curCenter := s.Center.At(r.Time())
@@ -84,13 +115,13 @@ func (s *sphere) Hit(r *ray.Ray, rayT interval.Interval, record *HitRecord) bool
 }
 
 type quad struct {
-	Q      *vec.Vec3 // One corner of the plane
-	u      *vec.Vec3 // u,v are vectors that point from Q to two other corners
-	v      *vec.Vec3
-	normal *vec.Vec3 // normal = unit(u x v)
-	w      *vec.Vec3
-	D      float64 // D = Ax + By + Cz = dot(Q, normal)
-
+	Q        *vec.Vec3 // One corner of the plane
+	u        *vec.Vec3 // u,v are vectors that point from Q to two other corners
+	v        *vec.Vec3
+	normal   *vec.Vec3 // normal = unit(u x v)
+	w        *vec.Vec3
+	D        float64 // D = Ax + By + Cz = dot(Q, normal)
+	area     float64
 	bbox     *aabb.AABB
 	material Material
 }
@@ -99,7 +130,7 @@ func NewQuad(Q, u, v *vec.Vec3, material Material) *quad {
 	q := &quad{Q: Q, u: u, v: v, material: material}
 
 	n := u.Cross(v)
-
+	q.area = n.Length()
 	q.normal = n.UnitVector()
 	q.D = q.normal.Dot(Q)
 	q.w = n.Scale(1 / n.Dot(n))
@@ -117,6 +148,22 @@ func (q *quad) setBBox() {
 func (q *quad) BBox() *aabb.AABB {
 	return q.bbox
 }
+
+func (q *quad) PdfValue(origin, direction *vec.Vec3) float64 {
+	record := &HitRecord{}
+	if !q.Hit(ray.New(origin, direction), *interval.New(0.001, math.Inf(1)), record) {
+		return 0
+	}
+	distSquared := record.t * record.t * direction.LengthSquared()
+	cosine := math.Abs(direction.Dot(record.normal) / direction.Length())
+	return distSquared / (cosine * q.area)
+}
+func (q *quad) Random(origin *vec.Vec3) *vec.Vec3 {
+	p := q.Q.Add(q.u.Scale(rand.Float64())).Add(q.v.Scale(rand.Float64()))
+
+	return p.Sub(origin)
+}
+
 func (q *quad) Hit(r *ray.Ray, rayT interval.Interval, record *HitRecord) bool {
 	denom := q.normal.Dot(r.Direction())
 

@@ -8,15 +8,22 @@ import (
 	"github.com/nsp5488/go_raytracer/internal/vec"
 )
 
+type ScatterRecord struct {
+	Attenuation *vec.Vec3
+	Pdf         Pdf
+	SkipPdf     bool
+	SkipPdfRay  *ray.Ray
+}
+
 // Material interface defines the behavior of a material when a ray hits it.
 type Material interface {
-	Scatter(rayIn, rayOut *ray.Ray, record *HitRecord, attenuation *vec.Vec3) bool
+	Scatter(rayIn *ray.Ray, record *HitRecord, srecord *ScatterRecord) bool
 	ScatteringPdf(rayIn, rayOut *ray.Ray, record *HitRecord) float64
 }
 
 type EmissiveMaterial interface {
 	Material
-	Emitted(u, v float64, point *vec.Vec3) *vec.Vec3
+	Emitted(record *HitRecord) *vec.Vec3
 }
 
 // Lambertian (matte) material.
@@ -35,17 +42,13 @@ func NewTexturedLambertian(tex Texture) *lambertian {
 }
 
 // Scatter implements the Lambertian material's scattering behavior.
-func (l *lambertian) Scatter(rayIn, rayOut *ray.Ray, record *HitRecord, attenuation *vec.Vec3) bool {
-	direction := vec.RandomOnHemisphere(record.normal)
-	if direction.NearZero() {
-		direction = record.Normal()
-	}
-	*rayOut = *ray.NewWithTime(record.P(), direction, rayIn.Time())
-	*attenuation = *l.tex.Value(record.u, record.v, record.p)
+func (l *lambertian) Scatter(rayIn *ray.Ray, record *HitRecord, srecord *ScatterRecord) bool {
+	srecord.Attenuation = l.tex.Value(record.u, record.v, record.p)
+	srecord.Pdf = CosinePdf(record.normal)
+	srecord.SkipPdf = false
 	return true
 }
 func (l *lambertian) ScatteringPdf(rayIn, rayOut *ray.Ray, record *HitRecord) float64 {
-	return 1 / (2 * math.Pi)
 	cosTheta := record.Normal().Dot(rayOut.Direction().UnitVector())
 	if cosTheta < 0 {
 		return 0
@@ -64,12 +67,15 @@ func NewMetal(albedo *vec.Vec3, fuzz float64) *metal {
 }
 
 // Scatter implements the metal material's scattering behavior.
-func (m *metal) Scatter(rayIn, rayOut *ray.Ray, record *HitRecord, attenuation *vec.Vec3) bool {
+func (m *metal) Scatter(rayIn *ray.Ray, record *HitRecord, srecord *ScatterRecord) bool {
 	reflected := rayIn.Direction().Reflect(record.normal)
 	reflected = reflected.UnitVector().Add(vec.RandomUnitVector().Scale(m.Fuzz))
-	*rayOut = *ray.NewWithTime(record.P(), reflected, rayIn.Time())
-	*attenuation = *m.Albedo
-	return rayOut.Direction().Dot(record.Normal()) > 0
+
+	srecord.Attenuation = m.Albedo
+	srecord.Pdf = nil
+	srecord.SkipPdf = true
+	srecord.SkipPdfRay = ray.NewWithTime(record.p, reflected, rayIn.Time())
+	return true
 }
 func (m *metal) ScatteringPdf(rayIn, rayOut *ray.Ray, record *HitRecord) float64 {
 	return 0
@@ -85,8 +91,10 @@ func NewDielectric(refractionIndex float64) *dielectric {
 }
 
 // Scatter implements the dielectric material's scattering behavior.
-func (d dielectric) Scatter(rayIn, rayOut *ray.Ray, record *HitRecord, attenuation *vec.Vec3) bool {
-	*attenuation = *vec.New(1, 1, 1)
+func (d dielectric) Scatter(rayIn *ray.Ray, record *HitRecord, srecord *ScatterRecord) bool {
+	srecord.Attenuation = vec.New(1, 1, 1)
+	srecord.Pdf = nil
+	srecord.SkipPdf = true
 
 	var ri float64
 	if record.FrontFace() {
@@ -107,7 +115,7 @@ func (d dielectric) Scatter(rayIn, rayOut *ray.Ray, record *HitRecord, attenuati
 		direction = unitDirection.Refract(record.normal, ri)
 	}
 
-	*rayOut = *ray.NewWithTime(record.P(), direction, rayIn.Time())
+	srecord.SkipPdfRay = ray.NewWithTime(record.P(), direction, rayIn.Time())
 	return true
 }
 func (d dielectric) ScatteringPdf(rayIn, rayOut *ray.Ray, record *HitRecord) float64 {
@@ -135,13 +143,15 @@ func (dl diffuseLight) ScatteringPdf(rayIn, rayOut *ray.Ray, record *HitRecord) 
 	return 0
 }
 
-func (dl diffuseLight) Scatter(rayIn, rayOut *ray.Ray, record *HitRecord, attenuation *vec.Vec3) bool {
-	*attenuation = *vec.New(1, 1, 1)
+func (dl diffuseLight) Scatter(rayIn *ray.Ray, record *HitRecord, srecord *ScatterRecord) bool {
 	return false
 }
 
-func (dl diffuseLight) Emitted(u, v float64, point *vec.Vec3) *vec.Vec3 {
-	return dl.tex.Value(u, v, point)
+func (dl diffuseLight) Emitted(record *HitRecord) *vec.Vec3 {
+	if !record.frontFace {
+		return vec.Empty()
+	}
+	return dl.tex.Value(record.u, record.v, record.p)
 }
 
 type isotropic struct {
@@ -149,7 +159,7 @@ type isotropic struct {
 }
 
 func (i isotropic) ScatteringPdf(rayIn, rayOut *ray.Ray, record *HitRecord) float64 {
-	return 0
+	return 1 / (4 * math.Pi)
 }
 
 func NewIsotropicTexture(tex Texture) *isotropic {
@@ -159,8 +169,9 @@ func NewIsotropic(albedo *vec.Vec3) *isotropic {
 	return &isotropic{tex: NewSolidColor(albedo)}
 }
 
-func (i *isotropic) Scatter(rayIn, rayOut *ray.Ray, record *HitRecord, attenuation *vec.Vec3) bool {
-	*rayOut = *ray.NewWithTime(record.p, vec.RandomUnitVector(), rayIn.Time())
-	*attenuation = *i.tex.Value(record.u, record.v, record.p)
+func (i *isotropic) Scatter(rayIn *ray.Ray, record *HitRecord, srecord *ScatterRecord) bool {
+	srecord.Attenuation = i.tex.Value(record.u, record.v, record.p)
+	srecord.Pdf = &SpherePdf{}
+	srecord.SkipPdf = false
 	return true
 }

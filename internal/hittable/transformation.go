@@ -11,6 +11,7 @@ import (
 )
 
 type translate struct {
+	defaultPdfImpl
 	object Hittable
 	offset *vec.Vec3
 	bbox   *aabb.AABB
@@ -37,6 +38,7 @@ func (t *translate) BBox() *aabb.AABB {
 }
 
 type rotateY struct {
+	defaultPdfImpl
 	object   Hittable
 	sinTheta float64
 	cosTheta float64

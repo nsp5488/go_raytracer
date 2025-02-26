@@ -1,6 +1,9 @@
 package hittable
 
 import (
+	"log"
+	"math/rand"
+
 	"github.com/nsp5488/go_raytracer/internal/aabb"
 	"github.com/nsp5488/go_raytracer/internal/interval"
 	"github.com/nsp5488/go_raytracer/internal/ray"
@@ -57,6 +60,18 @@ func (hr *HitRecord) FrontFace() bool {
 type Hittable interface {
 	Hit(r *ray.Ray, rayT interval.Interval, record *HitRecord) bool
 	BBox() *aabb.AABB
+	PdfValue(origin, direction *vec.Vec3) float64
+	Random(origin *vec.Vec3) *vec.Vec3
+}
+
+type defaultPdfImpl struct{}
+
+func (d defaultPdfImpl) PdfValue(origin, direction *vec.Vec3) float64 {
+	log.Fatal("hit an invalid PDF function")
+	return 0.0
+}
+func (d defaultPdfImpl) Random(origin *vec.Vec3) *vec.Vec3 {
+	return vec.New(1, 0, 0)
 }
 
 // A container struct for a list of hittable objects. Effectively a scene.
@@ -70,6 +85,18 @@ func NewHittableList(startSize int) *hittableList {
 	hl := &hittableList{}
 	hl.init(startSize)
 	return hl
+}
+func (hl *hittableList) PdfValue(origin, direction *vec.Vec3) float64 {
+	weight := 1.0 / float64(len(hl.objects))
+	sum := 0.0
+	for _, obj := range hl.objects {
+		sum += weight * obj.PdfValue(origin, direction)
+	}
+	return sum
+
+}
+func (hl *hittableList) Random(origin *vec.Vec3) *vec.Vec3 {
+	return hl.objects[rand.Intn(len(hl.objects))].Random(origin)
 }
 
 func (hl *hittableList) init(startSize int) {

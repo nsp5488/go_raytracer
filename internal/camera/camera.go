@@ -86,7 +86,7 @@ type rowData struct {
 }
 
 // calculates the pixel data for one row of the image utilizing a thread pool.
-func (c *Camera) renderRow(world hittable.Hittable, buf *rowData) {
+func (c *Camera) renderRow(world, lights hittable.Hittable, buf *rowData) {
 	defer c.waitGroup.Done()
 	c.groupSize <- struct{}{}
 	for j := range c.Width {
@@ -96,7 +96,7 @@ func (c *Camera) renderRow(world hittable.Hittable, buf *rowData) {
 		for s_i := 0; s_i < c.sppSqrt; s_i++ {
 			for s_j := 0; s_j < c.sppSqrt; s_j++ {
 				r := c.getRay(j, buf.index, s_j, s_i)
-				pixelColor.AddInplace(c.rayColor(r, world, c.MaxDepth))
+				pixelColor.AddInplace(c.rayColor(r, world, lights, c.MaxDepth))
 			}
 		}
 
@@ -109,7 +109,7 @@ func (c *Camera) renderRow(world hittable.Hittable, buf *rowData) {
 }
 
 // A threaded variant of the renderer.
-func (c *Camera) threadedRenderer(world hittable.Hittable) {
+func (c *Camera) threadedRenderer(world, lights hittable.Hittable) {
 	buffers := make([]rowData, c.imageHeight, c.imageHeight)
 	for i := range c.imageHeight {
 		buffers[i].data = &bytes.Buffer{}
@@ -118,7 +118,7 @@ func (c *Camera) threadedRenderer(world hittable.Hittable) {
 
 	for i := range c.imageHeight {
 		c.waitGroup.Add(1)
-		go c.renderRow(world, &buffers[i])
+		go c.renderRow(world, lights, &buffers[i])
 	}
 	c.waitGroup.Wait()
 
@@ -132,7 +132,7 @@ func (c *Camera) threadedRenderer(world hittable.Hittable) {
 }
 
 // A synchronous variant of the renderer.
-func (c *Camera) syncRenderer(world hittable.Hittable) {
+func (c *Camera) syncRenderer(world, lights hittable.Hittable) {
 	for i := range c.imageHeight {
 		for j := range c.Width {
 			pixelColor := vec.Empty()
@@ -141,7 +141,7 @@ func (c *Camera) syncRenderer(world hittable.Hittable) {
 			for s_i := 0; s_i < c.sppSqrt; s_i++ {
 				for s_j := 0; s_j < c.sppSqrt; s_j++ {
 					r := c.getRay(j, i, s_j, s_i)
-					pixelColor.AddInplace(c.rayColor(r, world, c.MaxDepth))
+					pixelColor.AddInplace(c.rayColor(r, world, lights, c.MaxDepth))
 				}
 			}
 
@@ -153,7 +153,7 @@ func (c *Camera) syncRenderer(world hittable.Hittable) {
 }
 
 // Render the provided scene using the camera's settings.
-func (c *Camera) Render(world hittable.Hittable) {
+func (c *Camera) Render(world, lights hittable.Hittable) {
 	c.initialize()
 
 	io.WriteString(c.Out, fmt.Sprintf("P3\n%d %d\n255\n", c.Width, c.imageHeight))
@@ -161,9 +161,9 @@ func (c *Camera) Render(world hittable.Hittable) {
 	// Run the processing in a separate goroutine
 	if c.MaxThreads <= 1 {
 		// use a low-overhead synchronous renderer if we're only alloted one thread.
-		go c.syncRenderer(world)
+		go c.syncRenderer(world, lights)
 	} else {
-		go c.threadedRenderer(world)
+		go c.threadedRenderer(world, lights)
 	}
 
 	if _, err := c.progressBar.Run(); err != nil {
@@ -287,31 +287,42 @@ func (c *Camera) defocusDiskSample() *vec.Vec3 {
 }
 
 // Calculates the color of a ray after it has been traced through the scene.
-func (c *Camera) rayColor(r *ray.Ray, world hittable.Hittable, depth int) *vec.Vec3 {
+func (c *Camera) rayColor(r *ray.Ray, world, lights hittable.Hittable, depth int) *vec.Vec3 {
 	if depth < 0 {
 		return vec.Empty()
 	}
+
 	rec := hittable.HitRecord{}
+
 	if !world.Hit(r, *interval.New(0.001, math.Inf(1)), &rec) {
 		return c.Background
 	}
 
 	emitColor := vec.Empty()
 	if emit, ok := rec.Material.(hittable.EmissiveMaterial); ok {
-		emitColor = emit.Emitted(rec.U(), rec.V(), rec.P())
+		emitColor = emit.Emitted(&rec)
 	}
 
-	scattered := &ray.Ray{}
-	attenuation := &vec.Vec3{}
+	srecord := &hittable.ScatterRecord{}
+	var pdfValue float64
 	scatterColor := vec.Empty()
-	if !rec.Material.Scatter(r, scattered, &rec, attenuation) {
+	if !rec.Material.Scatter(r, &rec, srecord) {
 		return emitColor
 	}
+	if srecord.SkipPdf {
+		return srecord.Attenuation.Multiply(c.rayColor(srecord.SkipPdfRay, world, lights, depth-1))
+	}
+
+	lightPdf := hittable.HittablePdf(rec.P(), lights)
+	mixPdf := hittable.MixturePdf(lightPdf, srecord.Pdf)
+
+	scattered := ray.NewWithTime(rec.P(), mixPdf.Generate(), r.Time())
+	pdfValue = mixPdf.Value(scattered.Direction())
+
 	scatterPdf := rec.Material.ScatteringPdf(r, scattered, &rec)
-	pdfValue := scatterPdf
-	scatterColor = attenuation.Multiply(c.rayColor(scattered, world, depth-1))
-	scatterColor.ScaleInplace(scatterPdf)
-	scatterColor.ScaleInplace(1 / pdfValue)
+
+	sampleColor := c.rayColor(scattered, world, lights, depth-1)
+	scatterColor = srecord.Attenuation.Scale(scatterPdf).Multiply(sampleColor).Scale(1 / pdfValue)
 
 	return emitColor.Add(scatterColor)
 }

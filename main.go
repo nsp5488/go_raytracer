@@ -39,7 +39,7 @@ func testWorld(c *camera.Camera) {
 	b := hittable.BuildBVH(world)
 	w := hittable.NewHittableList(1)
 	w.Add(b)
-	c.Render(w)
+	c.Render(w, hittable.NewHittableList(0))
 }
 
 // Creates the world from the cover of Ray Tracing in One Weekend.
@@ -94,7 +94,7 @@ func coverWorld(c *camera.Camera) {
 	world.Add(hittable.NewSphere(vec.New(4, 1, 0), 1.0, mat3))
 
 	b := hittable.BuildBVH(world)
-	c.Render(b)
+	c.Render(b, hittable.NewHittableList(0))
 }
 
 func checkeredSpheres(c *camera.Camera) {
@@ -116,7 +116,7 @@ func checkeredSpheres(c *camera.Camera) {
 	c.Background = vec.New(0.70, 0.80, 1.00)
 
 	c.DefocusAngle = 0
-	c.Render(w)
+	c.Render(w, hittable.NewHittableList(0))
 }
 
 func earth(c *camera.Camera) {
@@ -134,7 +134,7 @@ func earth(c *camera.Camera) {
 	earth_tex := hittable.NewImageTexture("earthmap.jpg")
 	earth_surf := hittable.NewTexturedLambertian(earth_tex)
 	l.Add(hittable.NewSphere(vec.Empty(), 2, earth_surf))
-	c.Render(l)
+	c.Render(l, hittable.NewHittableList(0))
 }
 
 func perlin(cam *camera.Camera) {
@@ -155,7 +155,7 @@ func perlin(cam *camera.Camera) {
 
 	cam.DefocusAngle = 0
 
-	cam.Render(world)
+	cam.Render(world, hittable.NewHittableList(0))
 }
 
 func quads(cam *camera.Camera) {
@@ -183,7 +183,7 @@ func quads(cam *camera.Camera) {
 	cam.VerticalFOV = 80
 	cam.PositionCamera(vec.New(0, 0, 9), vec.New(0, 0, 0), vec.New(0, 1, 0))
 	cam.DefocusAngle = 0
-	cam.Render(bvh)
+	cam.Render(bvh, hittable.NewHittableList(0))
 }
 
 func simpleLight(cam *camera.Camera) {
@@ -195,10 +195,11 @@ func simpleLight(cam *camera.Camera) {
 	s2 := hittable.NewSphere(vec.New(0, 2, 0), 2, hittable.NewTexturedLambertian(p))
 	q := hittable.NewQuad(vec.New(3, 1, -2), vec.New(2, 0, 0), vec.New(0, 2, 0), l)
 	s := hittable.NewSphere(vec.New(0, 7, 0), 2, l)
-	world.Add(q)
 	world.Add(s1)
-	world.Add(s2)
 	world.Add(s)
+	world.Add(q)
+	world.Add(s2)
+
 	cam.AspectRatio = 16.0 / 9.0
 	cam.Width = 400
 	cam.SamplesPerPixel = 100
@@ -210,7 +211,7 @@ func simpleLight(cam *camera.Camera) {
 
 	cam.DefocusAngle = 0
 
-	cam.Render(world)
+	cam.Render(world, q)
 
 }
 
@@ -225,22 +226,28 @@ func cornellBox(cam *camera.Camera) {
 	// walls and light
 	world.Add(hittable.NewQuad(vec.New(555, 0, 0), vec.New(0, 555, 0), vec.New(0, 0, 555), green))
 	world.Add(hittable.NewQuad(vec.New(0, 0, 0), vec.New(0, 555, 0), vec.New(0, 0, 555), red))
-	world.Add(hittable.NewQuad(vec.New(343, 550, 332), vec.New(-130, 0, 0), vec.New(0, 0, -105), light))
 	world.Add(hittable.NewQuad(vec.New(0, 0, 0), vec.New(555, 0, 0), vec.New(0, 0, 555), white))
 	world.Add(hittable.NewQuad(vec.New(555, 555, 555), vec.New(-555, 0, 0), vec.New(0, 0, -555), white))
 	world.Add(hittable.NewQuad(vec.New(0, 0, 555), vec.New(555, 0, 0), vec.New(0, 555, 0), white))
 
+	// light  source:
+	lights := hittable.NewHittableList(2)
+	lights.Add(hittable.NewQuad(vec.New(343, 550, 332), vec.New(-130, 0, 0), vec.New(0, 0, -105), light))
+	world.Add(lights)
 	// boxes
 	b1 := hittable.NewBox(vec.New(0, 0, 0), vec.New(165, 330, 165), white)
 	b1 = hittable.RotateY(b1, 15)
 	b1 = hittable.Translate(b1, vec.New(265, 0, 295))
-
-	b2 := hittable.NewBox(vec.New(0, 0, 0), vec.New(165, 165, 165), white)
-	b2 = hittable.RotateY(b2, -18)
-	b2 = hittable.Translate(b2, vec.New(130, 0, 65))
-
 	world.Add(b1)
-	world.Add(b2)
+
+	// b2 := hittable.NewBox(vec.New(0, 0, 0), vec.New(165, 165, 165), white)
+	// b2 = hittable.RotateY(b2, -18)
+	// b2 = hittable.Translate(b2, vec.New(130, 0, 65))
+	// world.Add(b2)
+	s := hittable.NewSphere(vec.New(190, 90, 190), 90, hittable.NewDielectric(1.5))
+	lights.Add(s)
+	world.Add(s)
+
 	cam.AspectRatio = 1.0
 	cam.Width = 600
 	cam.SamplesPerPixel = 1000
@@ -251,7 +258,7 @@ func cornellBox(cam *camera.Camera) {
 	cam.PositionCamera(vec.New(278, 278, -800), vec.New(278, 278, 0), vec.New(0, 1, 0))
 	cam.DefocusAngle = 0
 
-	cam.Render(hittable.BuildBVH(world))
+	cam.Render(hittable.BuildBVH(world), lights)
 }
 func cornellSmoke(cam *camera.Camera) {
 	world := hittable.NewHittableList(10)
@@ -284,7 +291,7 @@ func cornellSmoke(cam *camera.Camera) {
 
 	cam.AspectRatio = 1.0
 	cam.Width = 600
-	cam.SamplesPerPixel = 200
+	cam.SamplesPerPixel = 10
 	cam.MaxDepth = 50
 
 	cam.Background = vec.Empty()
@@ -293,7 +300,7 @@ func cornellSmoke(cam *camera.Camera) {
 	cam.DefocusAngle = 0
 
 	bvh := hittable.BuildBVH(world)
-	cam.Render(bvh)
+	cam.Render(bvh, hittable.NewHittableList(0))
 }
 func book2Scene(cam *camera.Camera) {
 	boxes1 := hittable.NewHittableList(20 * 20)
@@ -372,7 +379,7 @@ func book2Scene(cam *camera.Camera) {
 
 	cam.DefocusAngle = 0
 
-	cam.Render(world)
+	cam.Render(world, hittable.NewHittableList(0))
 }
 
 func main() {

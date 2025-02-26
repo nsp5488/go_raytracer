@@ -11,6 +11,7 @@ import (
 )
 
 type constantMedium struct {
+	defaultPdfImpl
 	boundary               Hittable
 	negativeInverseDensity float64
 	phaseFunction          Material
