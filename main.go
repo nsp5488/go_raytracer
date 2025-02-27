@@ -10,6 +10,7 @@ import (
 
 	"github.com/nsp5488/go_raytracer/internal/camera"
 	"github.com/nsp5488/go_raytracer/internal/hittable"
+	"github.com/nsp5488/go_raytracer/internal/objLoader"
 	"github.com/nsp5488/go_raytracer/internal/util"
 	"github.com/nsp5488/go_raytracer/internal/vec"
 )
@@ -381,7 +382,42 @@ func book2Scene(cam *camera.Camera) {
 
 	cam.Render(world, hittable.NewHittableList(0))
 }
+func modelTest(cam *camera.Camera) {
+	world := hittable.NewHittableList(3)
 
+	mat := hittable.NewLambertian(vec.New(235.0/255.0, 195.0/255.0, 52.0/255.0))
+	ground := hittable.NewLambertian(vec.New(.2, .2, .2))
+	opt := objLoader.DefaultLoadOptions()
+	opt.ScaleFactor = .03
+	opt.Center = true
+	opt.Position = vec.New(0, 2.5, 0)
+	opt.Debug = false
+	model := objLoader.LoadObjWithOptions("CERF_Free.obj", opt, mat)
+
+	world.Add(hittable.RotateY(model, 95))
+	floor := hittable.NewSphere(vec.New(0, -1000, 0), 1000, ground)
+	world.Add(floor)
+
+	light := hittable.NewDiffuseLight(vec.New(15, 15, 15))
+	q := hittable.NewQuad(vec.New(3, 1, -2), vec.New(2, 0, 0), vec.New(0, 2, 0), light)
+	world.Add(q)
+
+	lights := hittable.NewHittableList(1)
+	lights.Add(q)
+
+	cam.AspectRatio = 16.0 / 9.0
+	cam.Width = 1920
+	cam.SamplesPerPixel = 25
+	cam.MaxDepth = 50
+	cam.Background = vec.New(0, 0, 0)
+
+	cam.VerticalFOV = 20
+	cam.PositionCamera(vec.New(26, 3, 6), vec.New(0, 2, 0), vec.New(0, 1, 0))
+
+	cam.DefocusAngle = 0
+
+	cam.Render(world, lights)
+}
 func main() {
 	cpuprofile := flag.String("cpuprofile", "", "Write cpu profile to file")
 	outFile := flag.String("o", "image.ppm", "Specify a custom output file")
@@ -419,8 +455,9 @@ func main() {
 	// perlin(&c)
 	// quads(&c)
 	// simpleLight(&c)
-	cornellBox(&c)
+	// cornellBox(&c)
 	// cornellSmoke(&c)
 	// book2Scene(&c)
+	modelTest(&c)
 	file.Write(outBuf.Bytes())
 }

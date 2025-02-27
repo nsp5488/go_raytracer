@@ -238,3 +238,161 @@ func NewBox(a, b *vec.Vec3, mat Material) Hittable {
 
 	return BuildBVH(sides)
 }
+
+type Triangle struct {
+	defaultPdfImpl
+	Vertices [3]*vec.Vec3
+	Normals  [3]*vec.Vec3 // Vertex normals from the OBJ file
+	normal   *vec.Vec3    // Face normal (calculated from vertices)
+
+	bbox     *aabb.AABB
+	material Material
+
+	hasVertexNormals bool // Whether this triangle uses per-vertex normals
+}
+
+// NewTriangle creates a triangle with a calculated face normal
+func NewTriangle(vertices [3]*vec.Vec3, material Material) *Triangle {
+	t := &Triangle{
+		Vertices:         vertices,
+		material:         material,
+		hasVertexNormals: false,
+	}
+
+	// Calculate face normal from vertices
+	e0 := t.Vertices[1].Sub(t.Vertices[0])
+	e1 := t.Vertices[2].Sub(t.Vertices[0])
+	t.normal = e0.Cross(e1).UnitVector()
+
+	t.SetBbox()
+	return t
+}
+
+// NewTriangleWithNormals creates a triangle with custom vertex normals
+func NewTriangleWithNormals(vertices [3]*vec.Vec3, normals [3]*vec.Vec3, material Material) *Triangle {
+	t := &Triangle{
+		Vertices:         vertices,
+		Normals:          normals,
+		material:         material,
+		hasVertexNormals: true,
+	}
+
+	// Still calculate face normal for fallback/bbox calculations
+	e0 := t.Vertices[1].Sub(t.Vertices[0])
+	e1 := t.Vertices[2].Sub(t.Vertices[0])
+	t.normal = e0.Cross(e1).UnitVector()
+
+	t.SetBbox()
+	return t
+}
+
+func (t *Triangle) SetBbox() {
+	minX := math.Inf(1)
+	maxX := math.Inf(-1)
+	minY := math.Inf(1)
+	maxY := math.Inf(-1)
+	minZ := math.Inf(1)
+	maxZ := math.Inf(-1)
+
+	// identify the bounding interval (min,max) across all 3 dimensions
+	for vert := 0; vert < 3; vert++ {
+		minX = min(t.Vertices[vert].X(), minX)
+		maxX = max(t.Vertices[vert].X(), maxX)
+		minY = min(t.Vertices[vert].Y(), minY)
+		maxY = max(t.Vertices[vert].Y(), maxY)
+		minZ = min(t.Vertices[vert].Z(), minZ)
+		maxZ = max(t.Vertices[vert].Z(), maxZ)
+	}
+
+	// Add a small epsilon to avoid degenerate boxes
+	const epsilon = 1e-8
+	if maxX-minX < epsilon {
+		maxX += epsilon
+		minX -= epsilon
+	}
+	if maxY-minY < epsilon {
+		maxY += epsilon
+		minY -= epsilon
+	}
+	if maxZ-minZ < epsilon {
+		maxZ += epsilon
+		minZ -= epsilon
+	}
+
+	xInt := interval.New(minX, maxX)
+	yInt := interval.New(minY, maxY)
+	zInt := interval.New(minZ, maxZ)
+	t.bbox = aabb.NewAABB(xInt, yInt, zInt)
+}
+
+// interpolateNormal calculates the interpolated normal at the hit point
+// using barycentric coordinates (u,v)
+func (t *Triangle) interpolateNormal(u, v float64) *vec.Vec3 {
+	if !t.hasVertexNormals {
+		return t.normal
+	}
+
+	// Barycentric coordinates: u, v, and w=1-u-v
+	w := 1.0 - u - v
+
+	// Interpolate normals using barycentric coordinates
+	nx := w*t.Normals[0].X() + u*t.Normals[1].X() + v*t.Normals[2].X()
+	ny := w*t.Normals[0].Y() + u*t.Normals[1].Y() + v*t.Normals[2].Y()
+	nz := w*t.Normals[0].Z() + u*t.Normals[1].Z() + v*t.Normals[2].Z()
+
+	// Return normalized interpolated normal
+	interpolated := vec.New(nx, ny, nz)
+	return interpolated.UnitVector()
+}
+
+// Muller-Trumbore implementation
+func (t *Triangle) Hit(r *ray.Ray, rayT interval.Interval, record *HitRecord) bool {
+	e0 := t.Vertices[1].Sub(t.Vertices[0])
+	e1 := t.Vertices[2].Sub(t.Vertices[0])
+
+	pvec := r.Direction().Cross(e1)
+	det := e0.Dot(pvec)
+
+	if math.Abs(det) < 1e-8 {
+		return false // Ray is parallel to the triangle
+	}
+
+	invDet := 1.0 / det
+	tvec := r.Origin().Sub(t.Vertices[0])
+	u := tvec.Dot(pvec) * invDet
+	if u < 0 || u > 1 {
+		return false
+	}
+
+	qvec := tvec.Cross(e0)
+	v := r.Direction().Dot(qvec) * invDet
+	if v < 0 || (u+v) > 1 {
+		return false
+	}
+
+	tl := e1.Dot(qvec) * invDet
+	if tl < rayT.Min || tl > rayT.Max {
+		return false
+	}
+
+	record.u = u
+	record.v = v
+	record.t = tl
+	record.p = r.At(tl)
+
+	// Use the interpolated normal if we have vertex normals
+	if t.hasVertexNormals {
+		interpolatedNormal := t.interpolateNormal(u, v)
+		record.setFaceNormal(r, interpolatedNormal)
+	} else {
+		record.setFaceNormal(r, t.normal)
+	}
+
+	record.Material = t.material
+
+	return true
+}
+
+func (t *Triangle) BBox() *aabb.AABB {
+	return t.bbox
+}

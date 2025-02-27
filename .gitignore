@@ -3,3 +3,4 @@ images/*
 *.prof
 .DS_STORE
 *.ppm
+*.obj

@@ -96,6 +96,9 @@ func (hl *hittableList) PdfValue(origin, direction *vec.Vec3) float64 {
 
 }
 func (hl *hittableList) Random(origin *vec.Vec3) *vec.Vec3 {
+	if len(hl.objects) <= 0 {
+		return vec.Random()
+	}
 	return hl.objects[rand.Intn(len(hl.objects))].Random(origin)
 }
 
