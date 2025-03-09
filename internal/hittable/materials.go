@@ -82,16 +82,16 @@ func (m *metal) ScatteringPdf(rayIn, rayOut *ray.Ray, record *HitRecord) float64
 }
 
 // Dielectric material.
-type dielectric struct {
+type Dielectric struct {
 	RefractionIndex float64
 }
 
-func NewDielectric(refractionIndex float64) *dielectric {
-	return &dielectric{RefractionIndex: refractionIndex}
+func NewDielectric(refractionIndex float64) *Dielectric {
+	return &Dielectric{RefractionIndex: refractionIndex}
 }
 
 // Scatter implements the dielectric material's scattering behavior.
-func (d dielectric) Scatter(rayIn *ray.Ray, record *HitRecord, srecord *ScatterRecord) bool {
+func (d Dielectric) Scatter(rayIn *ray.Ray, record *HitRecord, srecord *ScatterRecord) bool {
 	srecord.Attenuation = vec.New(1, 1, 1)
 	srecord.Pdf = nil
 	srecord.SkipPdf = true
@@ -118,12 +118,12 @@ func (d dielectric) Scatter(rayIn *ray.Ray, record *HitRecord, srecord *ScatterR
 	srecord.SkipPdfRay = ray.NewWithTime(record.P(), direction, rayIn.Time())
 	return true
 }
-func (d dielectric) ScatteringPdf(rayIn, rayOut *ray.Ray, record *HitRecord) float64 {
+func (d Dielectric) ScatteringPdf(rayIn, rayOut *ray.Ray, record *HitRecord) float64 {
 	return 0
 }
 
 // Helper function to calculate the reflectance of a dielectric material
-func (d dielectric) reflectance(cosine float64) float64 {
+func (d Dielectric) reflectance(cosine float64) float64 {
 	r0 := (1.0 - d.RefractionIndex) / (1.0 + d.RefractionIndex)
 	r0 *= r0
 	return r0 + (1-r0)*math.Pow(1-cosine, 5)
@@ -136,7 +136,7 @@ type diffuseLight struct {
 func NewDiffuseLight(color *vec.Vec3) *diffuseLight {
 	return &diffuseLight{tex: NewSolidColor(color)}
 }
-func newDiffuseLightTextured(tex Texture) *diffuseLight {
+func NewDiffuseLightTextured(tex Texture) *diffuseLight {
 	return &diffuseLight{tex: tex}
 }
 func (dl diffuseLight) ScatteringPdf(rayIn, rayOut *ray.Ray, record *HitRecord) float64 {

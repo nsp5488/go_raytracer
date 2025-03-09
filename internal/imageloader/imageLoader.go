@@ -53,7 +53,7 @@ func (rti *RTImage) PixelData(x, y int) *pixel {
 	x, y = min(max(x, 0), rti.Width), min(max(y, 0), rti.Height)
 	idx := y*rti.Width + x
 
-	if idx > len(rti.bdata) || rti.bdata[idx] == nil {
+	if idx >= len(rti.bdata) || rti.bdata[idx] == nil {
 		return magenta
 	}
 	return rti.bdata[idx]

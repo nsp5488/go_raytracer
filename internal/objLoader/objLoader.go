@@ -6,6 +6,7 @@ import (
 	"log"
 	"math"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -15,25 +16,31 @@ import (
 
 // LoadObjOptions provides configuration options for loading OBJ files
 type LoadObjOptions struct {
-	ScaleFactor   float64
-	FlipYZ        bool
-	Debug         bool
-	IgnoreNormals bool
-	Center        bool
-	FlipFaces     bool
-	Position      *vec.Vec3
+	ScaleFactor     float64
+	FlipYZ          bool
+	Debug           bool
+	IgnoreNormals   bool
+	Center          bool
+	FlipFaces       bool
+	Position        *vec.Vec3
+	DefaultMaterial hittable.Material
+	IgnoreMtl       bool
+	FindWindows     bool // Whether dielectrics should be treated as light sources for scattering priority
 }
 
 // DefaultLoadOptions provides reasonable defaults
 func DefaultLoadOptions() LoadObjOptions {
 	return LoadObjOptions{
-		ScaleFactor:   1.0,
-		FlipYZ:        false,
-		Debug:         false,
-		IgnoreNormals: false,
-		Center:        true,
-		FlipFaces:     false,
-		Position:      vec.New(0, 0, 0),
+		ScaleFactor:     1.0,
+		FlipYZ:          false,
+		Debug:           true,
+		IgnoreNormals:   false,
+		Center:          true,
+		FlipFaces:       false,
+		Position:        vec.New(0, 0, 0),
+		DefaultMaterial: nil,
+		IgnoreMtl:       false,
+		FindWindows:     false,
 	}
 }
 
@@ -54,12 +61,15 @@ func fixIndex(i, length int) int {
 }
 
 // LoadObj loads a 3D model from an OBJ file with default options
-func LoadObj(filename string, mat hittable.Material) hittable.Hittable {
-	return LoadObjWithOptions(filename, DefaultLoadOptions(), mat)
+func LoadObj(filename string, mat hittable.Material) (hittable.Hittable, hittable.Hittable) {
+	options := DefaultLoadOptions()
+	options.DefaultMaterial = mat
+	return LoadObjWithOptions(filename, options)
 }
 
-// LoadObjWithOptions loads a 3D model from an OBJ file with custom options
-func LoadObjWithOptions(filename string, options LoadObjOptions, mat hittable.Material) hittable.Hittable {
+// LoadObjWithOptions loads a 3D model from an OBJ file with custom options. If any triangles are emissive within the model,
+// their locations are returned in the second argument
+func LoadObjWithOptions(filename string, options LoadObjOptions) (hittable.Hittable, hittable.Hittable) {
 	file, err := os.Open(filename)
 	if err != nil {
 		log.Fatalf("Could not open file %s: %v", filename, err)
@@ -72,11 +82,62 @@ func LoadObjWithOptions(filename string, options LoadObjOptions, mat hittable.Ma
 	var normals []*vec.Vec3
 	var triangles []*hittable.Triangle
 
+	// Initialize default material if not provided
+	if options.DefaultMaterial == nil {
+		options.DefaultMaterial = hittable.NewLambertian(vec.New(0.8, 0.8, 0.8))
+	}
+
+	// Material handling variables
+	var mtlLib *MaterialLibrary
+	var currentMaterial hittable.Material = options.DefaultMaterial
+	mtlFilename := ""
+
 	// For computing bounds
 	minBounds := [3]float64{math.MaxFloat64, math.MaxFloat64, math.MaxFloat64}
 	maxBounds := [3]float64{-math.MaxFloat64, -math.MaxFloat64, -math.MaxFloat64}
 	scanner := bufio.NewScanner(file)
 	lineNum := 0
+
+	// First scan: Check for MTL file reference
+	if !options.IgnoreMtl {
+		for scanner.Scan() {
+			lineNum++
+			line := strings.TrimSpace(scanner.Text())
+			if line == "" || strings.HasPrefix(line, "#") {
+				continue
+			}
+
+			parts := strings.Fields(line)
+			if len(parts) == 0 {
+				continue
+			}
+
+			if parts[0] == "mtllib" && len(parts) >= 2 {
+				mtlFilename = strings.Join(parts[1:], " ")
+				break
+			}
+		}
+
+		// Load MTL file if found
+		if mtlFilename != "" {
+			mtlPath := filepath.Join(filepath.Dir(filename), mtlFilename)
+			if options.Debug {
+				fmt.Printf("Loading MTL file: %s\n", mtlPath)
+			}
+
+			var err error
+			mtlLib, err = LoadMTL(mtlPath, options.Debug)
+			if err != nil {
+				log.Printf("Warning: Could not load MTL file: %v", err)
+				// Continue with default material
+			}
+		}
+
+		// Reset file for complete parsing
+		file.Seek(0, 0)
+		scanner = bufio.NewScanner(file)
+		lineNum = 0
+	}
 
 	// First pass: read vertices and compute bounds
 	for scanner.Scan() {
@@ -203,7 +264,7 @@ func LoadObjWithOptions(filename string, options LoadObjOptions, mat hittable.Ma
 		}
 	}
 
-	// Second pass: read normals, texture coords, and faces
+	// Second pass: read normals and faces
 	for scanner.Scan() {
 		lineNum++
 		line := strings.TrimSpace(scanner.Text())
@@ -238,10 +299,28 @@ func LoadObjWithOptions(filename string, options LoadObjOptions, mat hittable.Ma
 			// Normalize the normal vector
 			length := math.Sqrt(nx*nx + ny*ny + nz*nz)
 			if length > 0 {
-				normal.ScaleInplace(length)
+				normal.ScaleInplace(1.0 / length)
 			}
 
 			normals = append(normals, normal)
+
+		case "usemtl": // Use material
+			if options.IgnoreMtl || mtlLib == nil || len(parts) < 2 {
+				continue
+			}
+
+			materialName := parts[1]
+			if material, exists := mtlLib.Materials[materialName]; exists {
+				currentMaterial = material.Material
+				if options.Debug {
+					fmt.Printf("Switched to material: %s\n", materialName)
+				}
+			} else {
+				if options.Debug {
+					fmt.Printf("Material not found: %s, using default\n", materialName)
+				}
+				currentMaterial = options.DefaultMaterial
+			}
 
 		case "f": // Face
 			if len(parts) < 4 {
@@ -256,7 +335,7 @@ func LoadObjWithOptions(filename string, options LoadObjOptions, mat hittable.Ma
 				// Handle v/vt/vn format
 				indices := strings.Split(parts[i], "/")
 
-				// Vertex index (required)
+				// Vertex index
 				if len(indices) > 0 && indices[0] != "" {
 					idx, err := strconv.Atoi(indices[0])
 					if err != nil {
@@ -271,7 +350,7 @@ func LoadObjWithOptions(filename string, options LoadObjOptions, mat hittable.Ma
 					}
 				}
 
-				// Normal index (optional)
+				// Normal index
 				if len(indices) > 2 && indices[2] != "" && len(normals) > 0 && !options.IgnoreNormals {
 					idx, err := strconv.Atoi(indices[2])
 					if err == nil {
@@ -308,24 +387,24 @@ func LoadObjWithOptions(filename string, options LoadObjOptions, mat hittable.Ma
 								n2, n3 = n3, n2
 							}
 
-							// Create a triangle with custom normals
+							// Create a triangle with custom normals and the current material
 							triangles = append(triangles, hittable.NewTriangleWithNormals(
 								[3]*vec.Vec3{v1, v2, v3},
 								[3]*vec.Vec3{n1, n2, n3},
-								mat,
+								currentMaterial,
 							))
 						} else {
 							// Fall back to creating a triangle without custom normals
 							triangles = append(triangles, hittable.NewTriangle(
 								[3]*vec.Vec3{v1, v2, v3},
-								mat,
+								currentMaterial,
 							))
 						}
 					} else {
-						// Create a triangle without custom normals
+						// Create a triangle without custom normals but with the current material
 						triangles = append(triangles, hittable.NewTriangle(
 							[3]*vec.Vec3{v1, v2, v3},
-							mat,
+							currentMaterial,
 						))
 					}
 				}
@@ -339,21 +418,44 @@ func LoadObjWithOptions(filename string, options LoadObjOptions, mat hittable.Ma
 
 	if options.Debug {
 		fmt.Printf("=== MODEL SUMMARY ===\n")
-		fmt.Printf("Loaded %d vertices, %d normals,  %d triangles\n",
+		fmt.Printf("Loaded %d vertices, %d normals, %d triangles\n",
 			len(vertices), len(normals), len(triangles))
+
+		if mtlLib != nil {
+			fmt.Printf("Used %d materials from MTL file\n", len(mtlLib.Materials))
+		}
 	}
 
 	// Create a hittable list and add all triangles
 	model := hittable.NewHittableList(len(triangles))
+
+	// Store the lights separately to use in importance sampling.
+	lights := hittable.NewHittableList(1)
+	i := 0
 	for _, triangle := range triangles {
 		model.Add(triangle)
-	}
+		mat := triangle.Material
+		switch mat.(type) {
+		case *hittable.Dielectric:
+			if options.FindWindows { // Optionally use importance sampling on windows as well as light sources
+				lights.Add(triangle)
+				i++
+			}
+			break
+		case hittable.EmissiveMaterial:
+			lights.Add(triangle)
+			i++
+			break
 
+		}
+	}
 	// Build a Bounding Volume Hierarchy for faster ray intersection tests
 	bvh := hittable.BuildBVH(model)
 
 	// Final bbox check to verify positioning
 	if options.Debug {
+		fmt.Printf("%d Light sources found\n", i)
+
 		bbox := bvh.BBox()
 		if bbox != nil {
 			fmt.Printf("=== FINAL BVH BOUNDS ===\n")
@@ -373,5 +475,5 @@ func LoadObjWithOptions(filename string, options LoadObjOptions, mat hittable.Ma
 		}
 	}
 
-	return bvh
+	return bvh, lights
 }

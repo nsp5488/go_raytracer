@@ -241,10 +241,6 @@ func cornellBox(cam *camera.Camera) {
 	b1 = hittable.Translate(b1, vec.New(265, 0, 295))
 	world.Add(b1)
 
-	// b2 := hittable.NewBox(vec.New(0, 0, 0), vec.New(165, 165, 165), white)
-	// b2 = hittable.RotateY(b2, -18)
-	// b2 = hittable.Translate(b2, vec.New(130, 0, 65))
-	// world.Add(b2)
 	s := hittable.NewSphere(vec.New(190, 90, 190), 90, hittable.NewDielectric(1.5))
 	lights.Add(s)
 	world.Add(s)
@@ -385,34 +381,32 @@ func book2Scene(cam *camera.Camera) {
 func modelTest(cam *camera.Camera) {
 	world := hittable.NewHittableList(3)
 
-	mat := hittable.NewLambertian(vec.New(235.0/255.0, 195.0/255.0, 52.0/255.0))
-	ground := hittable.NewLambertian(vec.New(.2, .2, .2))
+	// Load the sponza model
 	opt := objLoader.DefaultLoadOptions()
-	opt.ScaleFactor = .03
+	opt.ScaleFactor = 1
 	opt.Center = true
-	opt.Position = vec.New(0, 2.5, 0)
-	opt.Debug = false
-	model := objLoader.LoadObjWithOptions("CERF_Free.obj", opt, mat)
-
-	world.Add(hittable.RotateY(model, 95))
-	floor := hittable.NewSphere(vec.New(0, -1000, 0), 1000, ground)
-	world.Add(floor)
-
-	light := hittable.NewDiffuseLight(vec.New(15, 15, 15))
-	q := hittable.NewQuad(vec.New(3, 1, -2), vec.New(2, 0, 0), vec.New(0, 2, 0), light)
-	world.Add(q)
-
-	lights := hittable.NewHittableList(1)
-	lights.Add(q)
-
+	opt.Position = vec.New(0, 0, 0)
+	opt.Debug = true
+	opt.FindWindows = true
+	model, lights := objLoader.LoadObjWithOptions("sponza.obj", opt)
+	sun := hittable.NewSphere(vec.New(5, 25, -2), 10, hittable.NewDiffuseLight(vec.New(10, 10, 8)))
+	world.Add(model)
+	world.Add(sun)
+	if hl, ok := lights.(*hittable.HittableList); ok {
+		hl.Add(sun)
+		lights = hl
+	}
 	cam.AspectRatio = 16.0 / 9.0
-	cam.Width = 1920
-	cam.SamplesPerPixel = 25
-	cam.MaxDepth = 50
-	cam.Background = vec.New(0, 0, 0)
+	cam.Width = 800
 
-	cam.VerticalFOV = 20
-	cam.PositionCamera(vec.New(26, 3, 6), vec.New(0, 2, 0), vec.New(0, 1, 0))
+	cam.SamplesPerPixel = 10000
+	cam.MaxDepth = 50
+
+	cam.Background = vec.New(.5, .5, .9).Scale(1)
+
+	cam.VerticalFOV = 80
+
+	cam.PositionCamera(vec.New(4, -5, -1), vec.New(0, -4, 0), vec.New(0, 1, 0))
 
 	cam.DefocusAngle = 0
 

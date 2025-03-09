@@ -24,6 +24,7 @@ func (v *Vec3) PrintColor(out io.Writer) {
 	r := v.e[0]
 	g := v.e[1]
 	b := v.e[2]
+
 	if math.IsNaN(r) {
 		r = 0.0
 	}
@@ -33,6 +34,7 @@ func (v *Vec3) PrintColor(out io.Writer) {
 	if math.IsNaN(b) {
 		b = 0.0
 	}
+
 	r = linearToGamma(r)
 	g = linearToGamma(g)
 	b = linearToGamma(b)

@@ -244,9 +244,9 @@ type Triangle struct {
 	Vertices [3]*vec.Vec3
 	Normals  [3]*vec.Vec3 // Vertex normals from the OBJ file
 	normal   *vec.Vec3    // Face normal (calculated from vertices)
-
+	area     float64
 	bbox     *aabb.AABB
-	material Material
+	Material Material
 
 	hasVertexNormals bool // Whether this triangle uses per-vertex normals
 }
@@ -255,9 +255,14 @@ type Triangle struct {
 func NewTriangle(vertices [3]*vec.Vec3, material Material) *Triangle {
 	t := &Triangle{
 		Vertices:         vertices,
-		material:         material,
+		Material:         material,
 		hasVertexNormals: false,
 	}
+	// Calc area
+	edge1 := t.Vertices[1].Sub(t.Vertices[0])
+	edge2 := t.Vertices[2].Sub(t.Vertices[0])
+	crossProduct := edge1.Cross(edge2)
+	t.area = crossProduct.Length() / 2.0
 
 	// Calculate face normal from vertices
 	e0 := t.Vertices[1].Sub(t.Vertices[0])
@@ -273,9 +278,14 @@ func NewTriangleWithNormals(vertices [3]*vec.Vec3, normals [3]*vec.Vec3, materia
 	t := &Triangle{
 		Vertices:         vertices,
 		Normals:          normals,
-		material:         material,
+		Material:         material,
 		hasVertexNormals: true,
 	}
+	// Calculate area
+	edge1 := t.Vertices[1].Sub(t.Vertices[0])
+	edge2 := t.Vertices[2].Sub(t.Vertices[0])
+	crossProduct := edge1.Cross(edge2)
+	t.area = crossProduct.Length() / 2.0
 
 	// Still calculate face normal for fallback/bbox calculations
 	e0 := t.Vertices[1].Sub(t.Vertices[0])
@@ -295,7 +305,7 @@ func (t *Triangle) SetBbox() {
 	maxZ := math.Inf(-1)
 
 	// identify the bounding interval (min,max) across all 3 dimensions
-	for vert := 0; vert < 3; vert++ {
+	for vert := range 3 {
 		minX = min(t.Vertices[vert].X(), minX)
 		maxX = max(t.Vertices[vert].X(), maxX)
 		minY = min(t.Vertices[vert].Y(), minY)
@@ -323,6 +333,37 @@ func (t *Triangle) SetBbox() {
 	yInt := interval.New(minY, maxY)
 	zInt := interval.New(minZ, maxZ)
 	t.bbox = aabb.NewAABB(xInt, yInt, zInt)
+}
+
+func (t *Triangle) PdfValue(origin, direction *vec.Vec3) float64 {
+	record := &HitRecord{}
+	if !t.Hit(ray.New(origin, direction), *interval.New(0.001, math.Inf(1)), record) {
+		return 0
+	}
+
+	// Calculate the area of the triangle
+	distSquared := record.t * record.t * direction.LengthSquared()
+	cosine := math.Abs(direction.Dot(record.normal) / direction.Length())
+
+	return distSquared / (cosine * t.area)
+}
+
+func (t *Triangle) Random(origin *vec.Vec3) *vec.Vec3 {
+	// Use barycentric coordinates for random point generation
+	// Generate two random values r1, r2 where r1 + r2 <= 1
+	r1 := rand.Float64()
+	r2 := rand.Float64() * (1 - r1)
+
+	// Barycentric coordinates (1-r1-r2, r1, r2)
+	a := 1 - r1 - r2
+	b := r1
+	c := r2
+
+	// Calculate the random point on the triangle
+	p := t.Vertices[0].Scale(a).Add(t.Vertices[1].Scale(b)).Add(t.Vertices[2].Scale(c))
+
+	// Return direction from origin to point
+	return p.Sub(origin)
 }
 
 // interpolateNormal calculates the interpolated normal at the hit point
@@ -388,7 +429,7 @@ func (t *Triangle) Hit(r *ray.Ray, rayT interval.Interval, record *HitRecord) bo
 		record.setFaceNormal(r, t.normal)
 	}
 
-	record.Material = t.material
+	record.Material = t.Material
 
 	return true
 }

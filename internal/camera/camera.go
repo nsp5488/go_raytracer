@@ -93,13 +93,12 @@ func (c *Camera) renderRow(world, lights hittable.Hittable, buf *rowData) {
 		pixelColor := vec.Empty()
 
 		// Perform stratification
-		for s_i := 0; s_i < c.sppSqrt; s_i++ {
-			for s_j := 0; s_j < c.sppSqrt; s_j++ {
+		for s_i := range c.sppSqrt {
+			for s_j := range c.sppSqrt {
 				r := c.getRay(j, buf.index, s_j, s_i)
 				pixelColor.AddInplace(c.rayColor(r, world, lights, c.MaxDepth))
 			}
 		}
-
 		pixelColor.Scale(c.pixelSamplesScale).PrintColor(buf.data)
 	}
 	<-c.groupSize
@@ -138,8 +137,8 @@ func (c *Camera) syncRenderer(world, lights hittable.Hittable) {
 			pixelColor := vec.Empty()
 
 			// Perform stratification
-			for s_i := 0; s_i < c.sppSqrt; s_i++ {
-				for s_j := 0; s_j < c.sppSqrt; s_j++ {
+			for s_i := range c.sppSqrt {
+				for s_j := range c.sppSqrt {
 					r := c.getRay(j, i, s_j, s_i)
 					pixelColor.AddInplace(c.rayColor(r, world, lights, c.MaxDepth))
 				}

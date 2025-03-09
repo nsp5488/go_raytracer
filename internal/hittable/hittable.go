@@ -75,18 +75,18 @@ func (d defaultPdfImpl) Random(origin *vec.Vec3) *vec.Vec3 {
 }
 
 // A container struct for a list of hittable objects. Effectively a scene.
-type hittableList struct {
+type HittableList struct {
 	objects []Hittable
 
 	bbox *aabb.AABB
 }
 
-func NewHittableList(startSize int) *hittableList {
-	hl := &hittableList{}
+func NewHittableList(startSize int) *HittableList {
+	hl := &HittableList{}
 	hl.init(startSize)
 	return hl
 }
-func (hl *hittableList) PdfValue(origin, direction *vec.Vec3) float64 {
+func (hl *HittableList) PdfValue(origin, direction *vec.Vec3) float64 {
 	weight := 1.0 / float64(len(hl.objects))
 	sum := 0.0
 	for _, obj := range hl.objects {
@@ -95,31 +95,31 @@ func (hl *hittableList) PdfValue(origin, direction *vec.Vec3) float64 {
 	return sum
 
 }
-func (hl *hittableList) Random(origin *vec.Vec3) *vec.Vec3 {
+func (hl *HittableList) Random(origin *vec.Vec3) *vec.Vec3 {
 	if len(hl.objects) <= 0 {
 		return vec.Random()
 	}
 	return hl.objects[rand.Intn(len(hl.objects))].Random(origin)
 }
 
-func (hl *hittableList) init(startSize int) {
+func (hl *HittableList) init(startSize int) {
 	hl.objects = make([]Hittable, 0, startSize)
 	hl.bbox = aabb.EmptyBBox()
 }
-func (hl *hittableList) Clear() {
+func (hl *HittableList) Clear() {
 	hl.objects = make([]Hittable, 10)
 }
 
-func (hl *hittableList) Add(obj Hittable) {
+func (hl *HittableList) Add(obj Hittable) {
 	hl.objects = append(hl.objects, obj)
 	hl.bbox = aabb.FromBBoxes(hl.bbox, obj.BBox())
 }
-func (hl *hittableList) BBox() *aabb.AABB {
+func (hl *HittableList) BBox() *aabb.AABB {
 	return hl.bbox
 }
 
 // Checks if a ray hits any of the objects in a scene
-func (hl *hittableList) Hit(r *ray.Ray, rayT interval.Interval, record *HitRecord) bool {
+func (hl *HittableList) Hit(r *ray.Ray, rayT interval.Interval, record *HitRecord) bool {
 	hitRecord := &HitRecord{}
 	// tmp := &HitRecord{}
 	hitAny := false

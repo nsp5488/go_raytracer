@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	padding  = 8
+	padding  = 16
 	maxWidth = 160
 )
 

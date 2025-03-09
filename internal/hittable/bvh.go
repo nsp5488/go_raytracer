@@ -18,7 +18,7 @@ type BVHNode struct {
 }
 
 // Builds a BVH out of a list of hittable objects
-func BuildBVH(list *hittableList) *BVHNode {
+func BuildBVH(list *HittableList) *BVHNode {
 	return bvhHelper(list, 0, len(list.objects))
 }
 
@@ -32,7 +32,7 @@ func boxCompare(a, b Hittable, axis int) bool {
 }
 
 // Recursively build a BVH which is effectively a binary tree of AABBs and leaf nodes are concrete hittable objects
-func bvhHelper(list *hittableList, start, end int) *BVHNode {
+func bvhHelper(list *HittableList, start, end int) *BVHNode {
 	bbox := aabb.EmptyBBox()
 	for i := start; i < end; i++ {
 		bbox = aabb.FromBBoxes(bbox, list.objects[i].BBox())
