@@ -1,11 +1,9 @@
 package hittable
 
 import (
-	"fmt"
 	"math"
 
 	ImageLoader "github.com/nsp5488/go_raytracer/internal/imageloader"
-	"github.com/nsp5488/go_raytracer/internal/interval"
 	"github.com/nsp5488/go_raytracer/internal/vec"
 )
 
@@ -73,14 +71,14 @@ func (it *imageTexture) Value(u, v float64, point *vec.Vec3) *vec.Vec3 {
 	if it.img.Height <= 0 {
 		return vec.New(0, 1, 1)
 	}
-	if u < 0 || u > 1 || v < 0 || v > 1 {
-		fmt.Printf("Warning: UV coordinates out of bounds: u=%f, v=%f\n", u, v)
-	}
-	u = interval.New(0, 1).Clamp(u)
-	v = 1 - interval.New(0, 1).Clamp(v)
+	// u = interval.New(0, 1).Clamp(u)
+	// v = 1 - interval.New(0, 1).Clamp(v)
+	// use modulo to repeat the texture
+	u = math.Abs(math.Mod(u, 1.0))
+	v = 1.0 - math.Abs(math.Mod(v, 1.0))
 
-	i := int(u * float64(it.img.Width))
-	j := int(v * float64(it.img.Height))
+	i := int(u * float64(it.img.Width-1))
+	j := int(v * float64(it.img.Height-1))
 	pixel := it.img.PixelData(i, j)
 
 	scale := 1.0 / 255.0

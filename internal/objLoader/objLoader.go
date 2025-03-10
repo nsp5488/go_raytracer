@@ -81,6 +81,7 @@ func LoadObjWithOptions(filename string, options LoadObjOptions) (hittable.Hitta
 	var vertices []*vec.Vec3 // These will be the processed vertices
 	var normals []*vec.Vec3
 	var triangles []*hittable.Triangle
+	var texCoords [][2]float64
 
 	// Initialize default material if not provided
 	if options.DefaultMaterial == nil {
@@ -151,7 +152,23 @@ func LoadObjWithOptions(filename string, options LoadObjOptions) (hittable.Hitta
 		if len(parts) == 0 {
 			continue
 		}
+		if parts[0] == "vt" { // Texture coordinate
+			if len(parts) < 3 {
+				log.Printf("Line %d: Malformed texture coordinate, expected at least 2 coordinates: %s", lineNum, line)
+				continue
+			}
 
+			u, errU := strconv.ParseFloat(parts[1], 64)
+			v, errV := strconv.ParseFloat(parts[2], 64)
+
+			if errU != nil || errV != nil {
+				log.Printf("Line %d: Invalid texture coordinates: %s", lineNum, line)
+				continue
+			}
+
+			// In OBJ files, v coordinate is often flipped (1-v), but we flip in the value function for backwards compatibility
+			texCoords = append(texCoords, [2]float64{u, v})
+		}
 		if parts[0] == "v" { // Vertex
 			if len(parts) < 4 {
 				log.Printf("Line %d: Malformed vertex, expected at least 3 coordinates: %s", lineNum, line)
@@ -329,6 +346,7 @@ func LoadObjWithOptions(filename string, options LoadObjOptions) (hittable.Hitta
 
 			// Parse vertex/texture/normal indices
 			var faceVertices []*vec.Vec3
+			var faceTexCoords [][2]float64
 			var faceNormals []*vec.Vec3
 
 			for i := 1; i < len(parts); i++ {
@@ -349,7 +367,16 @@ func LoadObjWithOptions(filename string, options LoadObjOptions) (hittable.Hitta
 						continue
 					}
 				}
-
+				// Texture coordinate index
+				if len(indices) > 1 && indices[1] != "" && len(texCoords) > 0 {
+					idx, err := strconv.Atoi(indices[1])
+					if err == nil {
+						tcIdx := fixIndex(idx, len(texCoords))
+						if tcIdx >= 0 && tcIdx < len(texCoords) {
+							faceTexCoords = append(faceTexCoords, texCoords[tcIdx])
+						}
+					}
+				}
 				// Normal index
 				if len(indices) > 2 && indices[2] != "" && len(normals) > 0 && !options.IgnoreNormals {
 					idx, err := strconv.Atoi(indices[2])
@@ -361,10 +388,8 @@ func LoadObjWithOptions(filename string, options LoadObjOptions) (hittable.Hitta
 					}
 				}
 			}
-
-			// Create triangles for the face (triangulate if needed)
+			// Create triangles with texture coordinates
 			if len(faceVertices) >= 3 {
-				// For a face with more than 3 vertices, we need to triangulate it
 				for i := 2; i < len(faceVertices); i++ {
 					v1, v2, v3 := faceVertices[0], faceVertices[i-1], faceVertices[i]
 
@@ -373,39 +398,86 @@ func LoadObjWithOptions(filename string, options LoadObjOptions) (hittable.Hitta
 						v2, v3 = v3, v2
 					}
 
-					// Create triangle with appropriate material
-					if len(faceNormals) >= 3 && i < len(faceNormals) && !options.IgnoreNormals {
-						// Use corresponding normals for the triangle vertices
-						n1Idx := 0
-						n2Idx := i - 1
-						n3Idx := i
+					// Create triangle with texture coordinates if available
+					if len(faceTexCoords) >= 3 && i < len(faceTexCoords) {
+						tc1, tc2, tc3 := faceTexCoords[0], faceTexCoords[i-1], faceTexCoords[i]
 
-						// Safely get normals
-						if n1Idx < len(faceNormals) && n2Idx < len(faceNormals) && n3Idx < len(faceNormals) {
-							n1, n2, n3 := faceNormals[n1Idx], faceNormals[n2Idx], faceNormals[n3Idx]
+						if options.FlipFaces {
+							tc2, tc3 = tc3, tc2
+						}
+
+						// If also has normals
+						if len(faceNormals) >= 3 && i < len(faceNormals) && !options.IgnoreNormals {
+							n1, n2, n3 := faceNormals[0], faceNormals[i-1], faceNormals[i]
+
 							if options.FlipFaces {
 								n2, n3 = n3, n2
 							}
 
-							// Create a triangle with custom normals and the current material
-							triangles = append(triangles, hittable.NewTriangleWithNormals(
+							// Create triangle with UVs and normals
+							triangles = append(triangles, hittable.NewTexturedTriangleWithNormals(
 								[3]*vec.Vec3{v1, v2, v3},
 								[3]*vec.Vec3{n1, n2, n3},
+								[3][2]float64{tc1, tc2, tc3},
 								currentMaterial,
 							))
 						} else {
-							// Fall back to creating a triangle without custom normals
+							// Create triangle with just UVs
+							triangles = append(triangles, hittable.NewTexturedTriangle(
+								[3]*vec.Vec3{v1, v2, v3},
+								[3][2]float64{tc1, tc2, tc3},
+								currentMaterial,
+							))
+						}
+					}
+
+				}
+			} else {
+				// Create triangles for the face (triangulate if needed)
+				if len(faceVertices) >= 3 {
+					// For a face with more than 3 vertices, we need to triangulate it
+					for i := 2; i < len(faceVertices); i++ {
+						v1, v2, v3 := faceVertices[0], faceVertices[i-1], faceVertices[i]
+
+						// Optionally flip the winding order
+						if options.FlipFaces {
+							v2, v3 = v3, v2
+						}
+
+						// Create triangle with appropriate material
+						if len(faceNormals) >= 3 && i < len(faceNormals) && !options.IgnoreNormals {
+							// Use corresponding normals for the triangle vertices
+							n1Idx := 0
+							n2Idx := i - 1
+							n3Idx := i
+
+							// Safely get normals
+							if n1Idx < len(faceNormals) && n2Idx < len(faceNormals) && n3Idx < len(faceNormals) {
+								n1, n2, n3 := faceNormals[n1Idx], faceNormals[n2Idx], faceNormals[n3Idx]
+								if options.FlipFaces {
+									n2, n3 = n3, n2
+								}
+
+								// Create a triangle with custom normals and the current material
+								triangles = append(triangles, hittable.NewTriangleWithNormals(
+									[3]*vec.Vec3{v1, v2, v3},
+									[3]*vec.Vec3{n1, n2, n3},
+									currentMaterial,
+								))
+							} else {
+								// Fall back to creating a triangle without custom normals
+								triangles = append(triangles, hittable.NewTriangle(
+									[3]*vec.Vec3{v1, v2, v3},
+									currentMaterial,
+								))
+							}
+						} else {
+							// Create a triangle without custom normals but with the current material
 							triangles = append(triangles, hittable.NewTriangle(
 								[3]*vec.Vec3{v1, v2, v3},
 								currentMaterial,
 							))
 						}
-					} else {
-						// Create a triangle without custom normals but with the current material
-						triangles = append(triangles, hittable.NewTriangle(
-							[3]*vec.Vec3{v1, v2, v3},
-							currentMaterial,
-						))
 					}
 				}
 			}

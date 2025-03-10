@@ -54,6 +54,7 @@ func (rti *RTImage) PixelData(x, y int) *pixel {
 	idx := y*rti.Width + x
 
 	if idx >= len(rti.bdata) || rti.bdata[idx] == nil {
+		fmt.Println(idx)
 		return magenta
 	}
 	return rti.bdata[idx]

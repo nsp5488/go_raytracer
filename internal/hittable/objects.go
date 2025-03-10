@@ -248,6 +248,8 @@ type Triangle struct {
 	bbox     *aabb.AABB
 	Material Material
 
+	texCoords        [3][2]float64 // Contains the texture coordinates for each vertex, if hasUV is true, else nil
+	hasUV            bool
 	hasVertexNormals bool // Whether this triangle uses per-vertex normals
 }
 
@@ -268,6 +270,7 @@ func NewTriangle(vertices [3]*vec.Vec3, material Material) *Triangle {
 	e0 := t.Vertices[1].Sub(t.Vertices[0])
 	e1 := t.Vertices[2].Sub(t.Vertices[0])
 	t.normal = e0.Cross(e1).UnitVector()
+	t.hasUV = false
 
 	t.SetBbox()
 	return t
@@ -291,11 +294,26 @@ func NewTriangleWithNormals(vertices [3]*vec.Vec3, normals [3]*vec.Vec3, materia
 	e0 := t.Vertices[1].Sub(t.Vertices[0])
 	e1 := t.Vertices[2].Sub(t.Vertices[0])
 	t.normal = e0.Cross(e1).UnitVector()
-
+	t.hasUV = false
 	t.SetBbox()
 	return t
 }
 
+// NewTexturedTriangle creates a new triangle with texture coordinates
+func NewTexturedTriangle(vertices [3]*vec.Vec3, texCoords [3][2]float64, material Material) *Triangle {
+	t := NewTriangle(vertices, material)
+	t.texCoords = texCoords
+	t.hasUV = true
+	return t
+}
+
+// NewTexturedTriangleWithNormals creates a new triangle with custom normals and texture coordinates
+func NewTexturedTriangleWithNormals(vertices [3]*vec.Vec3, normals [3]*vec.Vec3, texCoords [3][2]float64, material Material) *Triangle {
+	t := NewTriangleWithNormals(vertices, normals, material)
+	t.texCoords = texCoords
+	t.hasUV = true
+	return t
+}
 func (t *Triangle) SetBbox() {
 	minX := math.Inf(1)
 	maxX := math.Inf(-1)
@@ -416,8 +434,16 @@ func (t *Triangle) Hit(r *ray.Ray, rayT interval.Interval, record *HitRecord) bo
 		return false
 	}
 
-	record.u = u
-	record.v = v
+	if t.hasUV {
+		w := (1 - u - v)
+		// Interpolate texture coordinates using barycentric coordinates
+		record.u = w*t.texCoords[0][0] + u*t.texCoords[1][0] + v*t.texCoords[2][0]
+		record.v = w*t.texCoords[0][1] + u*t.texCoords[1][1] + v*t.texCoords[2][1]
+	} else {
+		// Default UVs, these may cause weird artifacts
+		record.u = u
+		record.v = v
+	}
 	record.t = tl
 	record.p = r.At(tl)
 

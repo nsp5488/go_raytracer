@@ -399,7 +399,7 @@ func modelTest(cam *camera.Camera) {
 	cam.AspectRatio = 16.0 / 9.0
 	cam.Width = 800
 
-	cam.SamplesPerPixel = 10000
+	cam.SamplesPerPixel = 100
 	cam.MaxDepth = 50
 
 	cam.Background = vec.New(.5, .5, .9).Scale(1)

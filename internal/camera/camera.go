@@ -323,5 +323,15 @@ func (c *Camera) rayColor(r *ray.Ray, world, lights hittable.Hittable, depth int
 	sampleColor := c.rayColor(scattered, world, lights, depth-1)
 	scatterColor = srecord.Attenuation.Scale(scatterPdf).Multiply(sampleColor).Scale(1 / pdfValue)
 
-	return emitColor.Add(scatterColor)
+	return clampContribution(emitColor.Add(scatterColor), 5.0)
+}
+
+// Clamps the maximum contribution of a single ray to prevent "fireflies"
+func clampContribution(color *vec.Vec3, maxValue float64) *vec.Vec3 {
+	intensity := color.X() + color.Y() + color.Z()
+	if intensity > maxValue {
+		scale := maxValue / intensity
+		return color.Scale(scale)
+	}
+	return color
 }
