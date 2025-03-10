@@ -405,7 +405,7 @@ func modelTest(cam *camera.Camera) {
 	cam.Background = vec.New(.5, .5, .9).Scale(1)
 
 	cam.VerticalFOV = 80
-
+	cam.MaxContribution = 5.0
 	cam.PositionCamera(vec.New(4, -5, -1), vec.New(0, -4, 0), vec.New(0, 1, 0))
 
 	cam.DefocusAngle = 0

@@ -33,6 +33,7 @@ type Camera struct {
 	DefocusAngle    float64
 	FocusDistance   float64
 	Background      *vec.Vec3
+	MaxContribution float64
 
 	// private members
 	groupSize         chan struct{}
@@ -200,7 +201,9 @@ func (c *Camera) initialize() {
 	if c.DefocusAngle == 0 {
 		c.DefocusAngle = 0
 	}
-
+	if c.MaxContribution == 0 {
+		c.MaxContribution = 1.5
+	}
 	// calculate image height given aspect ratio, clamped to >=1
 	c.imageHeight = max(1, int(float64(c.Width)/c.AspectRatio))
 
@@ -323,7 +326,7 @@ func (c *Camera) rayColor(r *ray.Ray, world, lights hittable.Hittable, depth int
 	sampleColor := c.rayColor(scattered, world, lights, depth-1)
 	scatterColor = srecord.Attenuation.Scale(scatterPdf).Multiply(sampleColor).Scale(1 / pdfValue)
 
-	return clampContribution(emitColor.Add(scatterColor), 5.0)
+	return clampContribution(emitColor.Add(scatterColor), c.MaxContribution)
 }
 
 // Clamps the maximum contribution of a single ray to prevent "fireflies"
