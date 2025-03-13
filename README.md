@@ -56,6 +56,14 @@ Below are a handful of higher resolution examples. Some of these can be obtained
 3. ![Book 2 cover image at full resolution](readmeImgs/Book2FullRes.jpg)
 4. ![Book 3 cover image at full resolution](readmeImgs/book3Fullres.jpg)
 
+## Future updates:
+1. Add more material types (BRDF, BSDF, etc)
+2. Better handling of .mtl files
+3. Bump mapping / Normal mapping
+4. Export photos to multiple file formats, not just ppm
+5. Post processing filters
+6. Realtime preview of scenes (possibly in a separate program)
+
 ## Acknowledgements
 * Peter Shirley's Ray Tracing in One Weekend series:
   * [Ray Tracing: In One Weekend](https://raytracing.github.io/books/RayTracingInOneWeekend.html)
