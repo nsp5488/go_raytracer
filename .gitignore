@@ -4,3 +4,4 @@ images/*
 .DS_STORE
 *.ppm
 *.obj
+renders/*
