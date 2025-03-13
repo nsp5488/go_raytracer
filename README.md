@@ -52,7 +52,7 @@ Note that all of the demo scenes have a reduced "SamplesPerPixel" value to speed
 Below are a handful of higher resolution examples. Some of these can be obtained by increasing the "SamplesPerPixel" value in the scene configuration of the demo scenes, others use third part Object files
 
 1. ![[Dabrovic Sponza](https://casual-effects.com/data/index.html)](readmeImgs/sponza1kspp.jpg)
-2. ![[Crytek Sponza With Erato Statue](https://casual-effects.com/data/index.html)](readmeImgs/crytekSponza.jpg)
+2. ![[Crytek Sponza With Erato Statue](https://casual-effects.com/data/index.html)](readmeImgs/CrytekSponza.jpg)
 3. ![Book 2 cover image at full resolution](readmeImgs/Book2FullRes.jpg)
 4. ![Book 3 cover image at full resolution](readmeImgs/book3FullRes.jpg)
 
