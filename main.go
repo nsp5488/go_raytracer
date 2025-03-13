@@ -303,10 +303,12 @@ func cornellBox(cam *camera.Camera) {
 	b2 := hittable.NewBox(vec.New(0, 0, 0), vec.New(165, 165, 165), white)
 	b2 = hittable.RotateY(b2, -18)
 	b2 = hittable.Translate(b2, vec.New(130, 0, 65))
+	world.Add(b1)
+	world.Add(b2)
 
 	cam.AspectRatio = 1.0
 	cam.Width = 600
-	cam.SamplesPerPixel = 10
+	cam.SamplesPerPixel = 100
 	cam.MaxDepth = 50
 
 	cam.Background = vec.Empty()
@@ -365,21 +367,24 @@ func cornellSmoke(cam *camera.Camera) {
 }
 
 // This function won't work without an external .obj / .mtl file. It's currently setup to use the MTL file located here:
+// https://casual-effects.com/data/index.html under "Chinese Dragon"
 func modelExample(cam *camera.Camera) {
 	world := hittable.NewHittableList(3)
-
+	ground := hittable.NewSphere(vec.New(0, -1000, 0), 1000, hittable.NewLambertian(vec.New(.4, .4, .4)))
+	world.Add(ground)
 	// Load the model
 	// Check the objectLoader file to find additional options for loading the model such as pre-positioning, and finding dielectric materials for sampling
 	opt := objLoader.DefaultLoadOptions()
-	opt.ScaleFactor = 1 // Scale the model up or down in size
+	opt.ScaleFactor = 5 // Scale the model up or down in size
 	opt.Center = true
-	opt.Debug = true // change this to true to see information about the model as it's being loaded.
+	opt.Position = vec.New(0, 1.8, 0)                                                  // hint: usee  the debug output to find the minimum y-value in the model
+	opt.Debug = true                                                                   // change this to true to see information about the model as it's being loaded.
+	opt.DefaultMaterial = hittable.NewMetal(vec.New(255.0/255.0, 215.0/255.0, 0), 0.5) // Solid gold dragon statue
+	model, lights := objLoader.LoadObjWithOptions("dragon.obj", opt)
+	world.Add(hittable.RotateY(model, 180))
 
-	model, lights := objLoader.LoadObjWithOptions("bmw.obj", opt)
-	world.Add(model)
-
-	// Add a separate light source to the scene
-	light := hittable.NewSphere(vec.New(-250, 100, -1750), 200, hittable.NewDiffuseLight(vec.New(4, 4, 4)))
+	// Add a separate light source to the scene. I think of this as a "sun"
+	light := hittable.NewSphere(vec.New(7, 13, 7), 5, hittable.NewDiffuseLight(vec.New(4, 4, 4)))
 	world.Add(light)
 	if hl, ok := lights.(*hittable.HittableList); ok {
 		hl.Add(light)
@@ -387,16 +392,16 @@ func modelExample(cam *camera.Camera) {
 	}
 
 	cam.AspectRatio = 16.0 / 9.0
-	cam.Width = 100
+	cam.Width = 600
 
-	cam.SamplesPerPixel = 10
+	cam.SamplesPerPixel = 250
 	cam.MaxDepth = 50
 
-	cam.Background = vec.New(.5, .5, .5)
+	cam.Background = vec.New(0, 0, 0)
 
 	cam.VerticalFOV = 40
 	cam.MaxContribution = 2.0
-	cam.PositionCamera(vec.New(-200, 0, -150), vec.New(0, 0, 0), vec.New(0, 1, 0))
+	cam.PositionCamera(vec.New(10, 5, 10), vec.New(0, 0, 0), vec.New(0, 1, 0))
 
 	cam.DefocusAngle = .1
 

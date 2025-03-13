@@ -33,13 +33,14 @@ will:
 The use of multiple cores is _highly_ recommended for more complex scenes, as it can significantly reduce rendering times.
 
 ### Other built-in demo scenes:
-1. ![Book 1 Cover scene](readmeImgs/book1.jpg)
-2. ![Book 2 Cover scene](readmeImgs/book2.jpg)
-3. ![Book 3 Cover scene](readmeImgs/book3.jpg)
-4. ![simpleLight](readmeImgs/simpleLight.jpg)
-5. ![Quads](readmeImgs/quads.jpg)
-6. ![Cornell Box](readmeImgs/cornellBox.jpg)
-7. ![Cornell Smoke](readmeImgs/cornellSmoke.jpg)
+1. ![Book 1 Cover scene](readmeImgs/book1.jpg) - A scene showing the cover of the first book in the series with some modifications.
+2. ![Book 2 Cover scene](readmeImgs/book2.jpg) - A scene showing the cover of the second book in the series.
+3. ![Book 3 Cover scene](readmeImgs/book3.jpg) - A scene showing the cover of the third book in the series.
+4. ![simpleLight](readmeImgs/simpleLight.jpg) - A scene showcasing simple diffuse lighting.
+5. ![Quads](readmeImgs/quads.jpg) - A scene showcasing quads with various materials.
+6. ![Cornell Box](readmeImgs/cornellBox.jpg) - A scene showing a cornell box.
+7. ![Cornell Smoke](readmeImgs/cornellSmoke.jpg) - A scene showing a cornell box with the boxes replaced with smoke.
+8. ![[Chinese Dragon](https://casual-effects.com/data/index.html)](readmeImgs/dragon.jpg) - A scene showcasing a chinese dragon mesh textured gold
 
 
 ### Creating your own scenes
