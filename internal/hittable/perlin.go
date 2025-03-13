@@ -23,7 +23,7 @@ func NewPerlin() *perlin {
 	p.permX = &[pointCount]int{}
 	p.permY = &[pointCount]int{}
 	p.permZ = &[pointCount]int{}
-	for i := 0; i < pointCount; i++ {
+	for i := range pointCount {
 		p.randVec[i] = vec.RangeRandom(-1, 1).UnitVector()
 	}
 	p.generatePerm()
@@ -40,9 +40,9 @@ func (p *perlin) Noise(point *vec.Vec3) float64 {
 	j := int(math.Floor(point.Y()))
 	k := int(math.Floor(point.Z()))
 	c := [2][2][2]*vec.Vec3{}
-	for di := 0; di < 2; di++ {
-		for dj := 0; dj < 2; dj++ {
-			for dk := 0; dk < 2; dk++ {
+	for di := range 2 {
+		for dj := range 2 {
+			for dk := range 2 {
 				c[di][dj][dk] = p.randVec[p.permX[(i+di)&255]^
 					p.permY[(j+dj)&255]^
 					p.permZ[(k+dk)&255]]
@@ -60,7 +60,7 @@ func (p *perlin) Turbulence(point *vec.Vec3, depth int) float64 {
 	*temp_p = *point
 	weight := 1.0
 
-	for i := 0; i < depth; i++ {
+	for range depth {
 		accum += weight * p.Noise(temp_p)
 		weight *= 0.5
 		temp_p.ScaleInplace(2)
@@ -70,7 +70,7 @@ func (p *perlin) Turbulence(point *vec.Vec3, depth int) float64 {
 
 // Generates data then permutes it
 func (p *perlin) generatePerm() {
-	for i := 0; i < pointCount; i++ {
+	for i := range pointCount {
 		p.permX[i] = i
 		p.permY[i] = i
 		p.permZ[i] = i
@@ -97,9 +97,9 @@ func perlinInterpolation(c *[2][2][2]*vec.Vec3, u, v, w float64) float64 {
 	ww := w * w * (3 - 2*w)
 
 	accumulator := 0.0
-	for i := 0; i < 2; i++ {
-		for j := 0; j < 2; j++ {
-			for k := 0; k < 2; k++ {
+	for i := range 2 {
+		for j := range 2 {
+			for k := range 2 {
 				weight := vec.New(u-float64(i), v-float64(j), w-float64(k))
 				accumulator += ((float64(i)*uu + float64(1-i)*(1-uu)) *
 					(float64(j)*vv + float64((1-j))*(1-vv)) *
