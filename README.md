@@ -49,7 +49,7 @@ The main.go file has several default scenes defined which can be used as a start
 Note that all of the demo scenes have a reduced "SamplesPerPixel" value to speed up rendering times. You can increase this value to improve image quality to match the examples below.
 
 ## Examples:
-Below are a handful of higher resolution examples. Some of these can be obtained by increasing the "SamplesPerPixel" value in the scene configuration of the demo scenes, others use third part Object files
+Below are a handful of higher resolution examples. Some of these can be obtained by increasing the "SamplesPerPixel" value in the scene configuration of the demo scenes, others use third party Object files
 
 1. ![[Dabrovic Sponza](https://casual-effects.com/data/index.html)](readmeImgs/sponza1kspp.jpg)
 2. ![[Crytek Sponza With Erato Statue](https://casual-effects.com/data/index.html)](readmeImgs/CrytekSponza.jpg)
