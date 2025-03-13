@@ -154,6 +154,7 @@ func (c *Camera) syncRenderer(world, lights hittable.Hittable) {
 
 // Render the provided scene using the camera's settings.
 func (c *Camera) Render(world, lights hittable.Hittable) {
+	fmt.Println("Beginning render. . .")
 	c.initialize()
 
 	io.WriteString(c.Out, fmt.Sprintf("P3\n%d %d\n255\n", c.Width, c.imageHeight))
