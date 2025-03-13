@@ -54,7 +54,7 @@ Below are a handful of higher resolution examples. Some of these can be obtained
 1. ![[Dabrovic Sponza](https://casual-effects.com/data/index.html)](readmeImgs/sponza1kspp.jpg)
 2. ![[Crytek Sponza With Erato Statue](https://casual-effects.com/data/index.html)](readmeImgs/CrytekSponza.jpg)
 3. ![Book 2 cover image at full resolution](readmeImgs/Book2FullRes.jpg)
-4. ![Book 3 cover image at full resolution](readmeImgs/book3FullRes.jpg)
+4. ![Book 3 cover image at full resolution](readmeImgs/book3Fullres.jpg)
 
 ## Acknowledgements
 * Peter Shirley's Ray Tracing in One Weekend series:
